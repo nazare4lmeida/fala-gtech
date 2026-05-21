@@ -4,9 +4,10 @@
   "description": "Backend CRM Geração Tech 3.0",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
-  },
+  "start": "node src/server.js",
+  "build": "echo ok",
+  "postinstall": "node -e \"const p = require('puppeteer'); p.executablePath && console.log('ok')\""
+},
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "@wppconnect-team/wppconnect": "^1.38.0",

@@ -250,7 +250,7 @@ wppconnect
     session: "geracao-tech",
     autoClose: false,
     puppeteerOptions: {
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+      executablePath: undefined,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
