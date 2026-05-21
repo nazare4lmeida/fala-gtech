@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.cache/
+
+# navegador/chrome
+Default/
+Network/
+Cookies
+*.ldb
+*.log
+*.sqlite
+
+# tokens e sessões
+tokens/
+backend/tokens/
+
+# sistema
+.DS_Store
+Thumbs.db
