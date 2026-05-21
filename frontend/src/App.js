@@ -74,7 +74,7 @@ function App() {
     setEnviandoWhats(true);
     try {
       await axios.post(
-        "http://localhost:3001/send-bulk",
+        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
         { message: msgWhats, students: [alunoChat], limit: 1 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -204,7 +204,7 @@ function App() {
     setLoading(true);
     try {
       await axios.post(
-        "http://localhost:3001/send-bulk",
+        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
         { message: mensagem, students: alunosPendentes, limit: 50 },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -222,7 +222,7 @@ function App() {
     setLoading(true);
     try {
       await axios.post(
-        "http://localhost:3001/send-bulk",
+        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
         { message: mensagem, students: selecionadosPendentes, limit: selecionadosPendentes.length },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -245,7 +245,7 @@ function App() {
     setLoading(true);
     try {
       const res = await axios.post(
-        "http://localhost:3001/send-email-bulk",
+        `${process.env.REACT_APP_BACKEND_URL}/send-email-bulk`,
         { students: selecionados, subject: assunto, messageBody: corpoEmail },
         { headers: { Authorization: `Bearer ${token}` } }
       );

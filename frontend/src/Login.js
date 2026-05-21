@@ -17,7 +17,7 @@ export default function Login({ onLogin }) {
     setErro("");
     setCarregando(true);
     try {
-      const res = await axios.post("http://localhost:3001/login", { email, senha });
+      const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/login`, { email, senha });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("nomeUsuario", res.data.nome);
       onLogin(res.data.token);
