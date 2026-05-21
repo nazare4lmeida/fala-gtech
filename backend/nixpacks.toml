@@ -1,5 +1,0 @@
-[phases.setup]
-nixPkgs = ["chromium", "nss", "freetype", "ca-certificates"]
-
-[start]
-cmd = "node src/server.js"
