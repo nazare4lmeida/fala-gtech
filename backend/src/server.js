@@ -8,12 +8,11 @@ require("dotenv").config();
 
 const app = express();
 app.use(express.json());
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "https://fala-gtech.vercel.app"
-  ]
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://fala-gtech.vercel.app"],
+  }),
+);
 
 const PORT = process.env.PORT || 3001;
 const SECRET_KEY =
@@ -251,10 +250,17 @@ wppconnect
     session: "geracao-tech",
     autoClose: false,
     puppeteerOptions: {
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH ||
+        "/run/current-system/sw/bin/chromium",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
       ],
     },
   })
