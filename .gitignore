@@ -1,16 +1,19 @@
-# Ignora todas as pastas node_modules em qualquer nível
-**/node_modules/
+node_modules/
+dist/
+.cache/
 
-# Ignora arquivos .env em qualquer subpasta
-**/.env
+# navegador/chrome
+Default/
+Network/
+Cookies
+*.ldb
+*.log
+*.sqlite
 
-# Ignora o arquivo do supabase no frontend
-**/src/supabaseClient.js
+# tokens e sessões
+tokens/
+backend/tokens/
 
-# Ignora logs de erro e arquivos do sistema
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# sistema
 .DS_Store
-
-**/tokens/
+Thumbs.db

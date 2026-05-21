@@ -1,139 +1,216 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import * as XLSX from "xlsx";
 import axios from "axios";
 import { supabase } from "./supabaseClient";
 import "./App.css";
-import ChatComponent from "./ChatComponent";
+import Login from "./Login";
+import SuporteAluno from "./SuporteAluno";
+import AtendimentoChat from "./AtendimentoChat";
 
-// Componentes PrimeReact
 import { Button } from "primereact/button";
 import { InputTextarea } from "primereact/inputtextarea";
+import { InputText } from "primereact/inputtext";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { TabView, TabPanel } from "primereact/tabview";
-import { InputText } from "primereact/inputtext";
 
-// Estilos obrigatórios do PrimeReact
 import "primereact/resources/themes/lara-light-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 
+// ─── Rota pública: /suporte ────────────────────────────────────────────────────
+// Renderizado fora do App para não violar regras de hooks
+function AppRouter() {
+  if (window.location.pathname === "/suporte") {
+    return <SuporteAluno />;
+  }
+  return <App />;
+}
+
+// ─── App principal ────────────────────────────────────────────────────────────
 function App() {
-  const [alunosPendentes, setAlunosPendentes] = useState([]);
+  // ── TODOS os hooks ANTES de qualquer return ────────────────────────────────
+  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [nomeUsuario, setNomeUsuario] = useState(localStorage.getItem("nomeUsuario") || "");
   const [todosAlunos, setTodosAlunos] = useState([]);
+  const [alunosPendentes, setAlunosPendentes] = useState([]);
   const [selecionados, setSelecionados] = useState([]);
-  const [mensagem, setMensagem] = useState(
-    "Olá {nome}, confirmamos sua inscrição no curso de {curso}!",
-  );
+  const [selecionadosPendentes, setSelecionadosPendentes] = useState([]);
+  const [mensagem, setMensagem] = useState("Olá {nome}, confirmamos sua inscrição no curso de {curso}!");
+  const [assunto, setAssunto] = useState("[Geração Tech] Confirmação de Matrícula");
+  const [corpoEmail, setCorpoEmail] = useState("Olá {nome}, confirmamos sua inscrição no curso de {curso}.\n\nFique atento às próximas comunicações da equipe.");
   const [loading, setLoading] = useState(false);
+  const [filtroGlobal, setFiltroGlobal] = useState("");
+  const [filtroEnvio, setFiltroEnvio] = useState("");
+  const [activeIndex, setActiveIndex] = useState(
+    parseInt(localStorage.getItem("activeTab") || "0", 10)
+  );
+  const fileInputRef = useRef(null);
+  const fileEmailInputRef = useRef(null);
 
-  // NOVOS ESTADOS PARA O CHAT
-  const [alunoSelecionado, setAlunoSelecionado] = useState(null);
-  const [textoChat, setTextoChat] = useState("");
+  // ── Estados do Chat WhatsApp ───────────────────────────────────────────────
+  const [alunoChat, setAlunoChat] = useState(null);
+  const [msgWhats, setMsgWhats] = useState("");
+  const [enviandoWhats, setEnviandoWhats] = useState(false);
+  const chatEndRef = useRef(null);
 
-  // Função para excluir contato definitivamente
-  const excluirContato = async (id) => {
-    if (
-      window.confirm(
-        "Nazaré, tem certeza que deseja excluir este aluno definitivamente?",
-      )
-    ) {
-      const { error } = await supabase.from("alunos").delete().eq("id", id);
+  // ── Scroll automático do chat WhatsApp ───────────────────────────────────────
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [alunoChat]);
 
-      if (error) {
-        alert("Erro ao excluir do banco de dados.");
-      } else {
-        carregarDados(); // Atualiza a lista e o dashboard na hora
-      }
+  // ── Atualiza o alunoChat em tempo real quando os dados recarregam ─────────
+  useEffect(() => {
+    if (alunoChat) {
+      const atualizado = todosAlunos.find((a) => a.id === alunoChat.id);
+      if (atualizado) setAlunoChat(atualizado);
+    }
+  }, [todosAlunos]);
+
+  // ── Envia mensagem individual pelo WhatsApp ───────────────────────────────
+  const enviarMensagemWhats = async () => {
+    if (!msgWhats.trim() || !alunoChat || enviandoWhats) return;
+    setEnviandoWhats(true);
+    try {
+      await axios.post(
+        "http://localhost:3001/send-bulk",
+        { message: msgWhats, students: [alunoChat], limit: 1 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setMsgWhats("");
+    } catch {
+      alert("Erro ao enviar. Verifique se o backend está rodando.");
+    } finally {
+      setEnviandoWhats(false);
     }
   };
 
-  // 1. Carregar dados das listas
+  // ── Carrega dados do Supabase ──────────────────────────────────────────────
   const carregarDados = async () => {
-    // Busca todos os alunos organizando por status e data
-    const { data: todos } = await supabase
+    const { data, error } = await supabase
       .from("alunos")
       .select("*")
-      .order("status", { ascending: false }) // 'pendente' vem antes de 'enviado'
       .order("created_at", { ascending: false });
-
-    if (todos) {
-      setTodosAlunos(todos);
-      // Filtra apenas os pendentes para a lista de disparos
-      setAlunosPendentes(todos.filter((a) => a.status === "pendente"));
+    if (error) { console.error("Erro ao carregar alunos:", error); return; }
+    if (data) {
+      setTodosAlunos(data);
+      setAlunosPendentes(data.filter((a) => a.status === "pendente"));
     }
   };
 
   useEffect(() => {
-    carregarDados(); // Carrega ao abrir a página
+    if (!token) return;
 
-    // Cria o intervalo de 10 segundos (10000ms)
-    const intervalo = setInterval(() => {
-      console.log("Atualizando chat e dashboard...");
-      carregarDados();
-    }, 10000);
+    // Carrega dados iniciais
+    carregarDados();
 
-    // Limpa o intervalo se você fechar a aba ou o sistema
-    return () => clearInterval(intervalo);
-  }, [alunoSelecionado]); // Ele se reinicia se você trocar de aluno no chat
-  // 2. Importação de Excel
+    // Realtime: escuta qualquer INSERT, UPDATE ou DELETE na tabela alunos
+    const channel = supabase
+      .channel("alunos_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "alunos" },
+        () => {
+          // Recarrega toda a lista quando qualquer coisa mudar
+          carregarDados();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("✅ Realtime conectado na tabela alunos");
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [token]);
+
+  // ── Logout ─────────────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("nomeUsuario");
+    setToken(null);
+    setNomeUsuario("");
+  };
+
+  const onTabChange = (e) => {
+    setActiveIndex(e.index);
+    localStorage.setItem("activeTab", e.index.toString());
+  };
+
+  // ── Guard de login (DEPOIS dos hooks) ─────────────────────────────────────
+  if (!token) {
+    return (
+      <Login
+        onLogin={(t) => {
+          setToken(t);
+          setNomeUsuario(localStorage.getItem("nomeUsuario") || "");
+        }}
+      />
+    );
+  }
+
+  // ── Importar Excel ─────────────────────────────────────────────────────────
   const handleImport = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
-
     reader.onload = async (evt) => {
-      const bstr = evt.target.result;
-      const wb = XLSX.read(bstr, { type: "binary" });
+      const wb = XLSX.read(evt.target.result, { type: "binary" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rawData = XLSX.utils.sheet_to_json(ws);
 
-      const vistos = new Set();
-      const alunosUnicos = [];
+      const alunos = rawData
+        .map((row) => {
+          const nome = row.nome || row.Nome || row.NOME;
+          const telefone = row.telefone || row.Telefone || row.TELEFONE;
+          const curso = row.curso || row.Curso || row.CURSO;
+          const email = row.email || row.Email || row.EMAIL;
+          if (nome && (telefone || email)) {
+            return {
+              nome,
+              telefone: telefone ? String(telefone).trim() : "Não informado",
+              curso: curso || "Não informado",
+              email: email || "",
+              status: "pendente",
+              respondeu: false,
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
 
-      for (const aluno of rawData) {
-        const telOriginal = aluno.telefone;
-        const telLimpo = String(telOriginal).replace(/\D/g, "");
-
-        if (!vistos.has(telLimpo) && telLimpo !== "") {
-          vistos.add(telLimpo);
-          alunosUnicos.push({
-            nome: aluno.nome,
-            telefone: String(telOriginal),
-            curso: aluno.curso,
-            status: "pendente",
-            respondeu: false,
-          });
-        }
+      if (alunos.length === 0) {
+        alert("Nenhum aluno válido encontrado. Verifique as colunas: nome, telefone, curso, email.");
+        return;
       }
 
-      const { error } = await supabase.from("alunos").insert(alunosUnicos);
-
-      if (error) {
-        console.error("Erro Supabase:", error);
-        alert("Erro ao salvar. Verifique se as colunas existem no banco.");
-      } else {
-        alert(`${alunosUnicos.length} alunos importados com sucesso!`);
+      const { error } = await supabase.from("alunos").insert(alunos);
+      if (error) alert(`Erro: ${error.message}`);
+      else {
+        alert(`✅ ${alunos.length} aluno(s) importado(s) com sucesso!`);
         carregarDados();
       }
     };
     reader.readAsBinaryString(file);
+    e.target.value = "";
   };
 
-  // 3. Disparo em Lote
-  const dispararMensagens = async () => {
+  // ── Disparo WhatsApp ───────────────────────────────────────────────────────
+  const dispararLote = async () => {
     if (alunosPendentes.length === 0) return;
-
     setLoading(true);
     try {
-      await axios.post("http://localhost:3001/send-bulk", {
-        message: mensagem,
-        students: alunosPendentes,
-        limit: 50,
-      });
-      alert("Lote de 50 mensagens iniciado!");
-    } catch (error) {
-      alert("Erro ao conectar ao servidor.");
+      await axios.post(
+        "http://localhost:3001/send-bulk",
+        { message: mensagem, students: alunosPendentes, limit: 50 },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Lote iniciado! Acompanhe os status na tabela.");
+    } catch {
+      alert("Erro: verifique se o backend está rodando e o WhatsApp conectado.");
     } finally {
       setLoading(false);
       setTimeout(carregarDados, 3000);
@@ -141,529 +218,703 @@ function App() {
   };
 
   const dispararSelecionados = async () => {
-    if (selecionados.length === 0) return;
+    if (selecionadosPendentes.length === 0) return;
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:3001/send-bulk", {
-        message: mensagem,
-        students: selecionados,
-        limit: selecionados.length,
-      });
-
-      if (response.status === 200) {
-        alert(`Processo iniciado! Verifique as mensagens chegando.`);
-        setSelecionados([]);
-
-        let tentativas = 0;
-        const intervalo = setInterval(() => {
-          carregarDados();
-          tentativas++;
-          if (tentativas >= 5) clearInterval(intervalo);
-        }, 10000);
-      }
-    } catch (error) {
+      await axios.post(
+        "http://localhost:3001/send-bulk",
+        { message: mensagem, students: selecionadosPendentes, limit: selecionadosPendentes.length },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(`Disparo iniciado para ${selecionadosPendentes.length} aluno(s)!`);
+      setSelecionadosPendentes([]);
+    } catch {
       alert("Erro ao conectar com o servidor.");
     } finally {
       setLoading(false);
     }
   };
 
-  // NOVA FUNÇÃO: Enviar resposta pelo Chat/Sistema
-  const enviarRespostaChat = async () => {
-    if (!textoChat || !alunoSelecionado) return;
-
-    const { error } = await supabase
-      .from("alunos")
-      .update({
-        ultima_resposta: textoChat,
-        status: "concluido",
-        respondeu: true,
-      })
-      .eq("id", alunoSelecionado.id);
-
-    if (!error) {
-      setTextoChat("");
-      carregarDados();
-      alert("Resposta/Feedback salvo no sistema!");
-    } else {
-      alert("Erro ao salvar resposta.");
-    }
-  };
-
-  const excluirEmMassa = async () => {
+  // ── Disparo de E-mail ──────────────────────────────────────────────────────
+  const dispararEmails = async () => {
     if (selecionados.length === 0) return;
-
-    if (
-      window.confirm(
-        `Deseja excluir permanentemente os ${selecionados.length} contatos selecionados?`,
-      )
-    ) {
-      const idsParaExcluir = selecionados.map((s) => s.id);
-
-      const { error } = await supabase
-        .from("alunos")
-        .delete()
-        .in("id", idsParaExcluir);
-
-      if (!error) {
-        setSelecionados([]);
-        carregarDados();
-        alert("Contatos excluídos com sucesso!");
-      } else {
-        alert("Erro ao excluir contatos.");
+    if (!assunto || !corpoEmail) {
+      alert("Preencha o assunto e o corpo do e-mail.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await axios.post(
+        "http://localhost:3001/send-email-bulk",
+        { students: selecionados, subject: assunto, messageBody: corpoEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const { message, falhas } = res.data;
+      let aviso = `✅ ${message}`;
+      if (falhas?.length > 0) {
+        aviso += `\n\n⚠️ Falhas (${falhas.length}):\n` + falhas.map((f) => `• ${f.nome}: ${f.motivo}`).join("\n");
       }
+      alert(aviso);
+      setSelecionados([]);
+      carregarDados();
+    } catch (err) {
+      alert("Falha no disparo. " + (err.response?.data?.error || "Verifique o servidor."));
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 4. Edição de Linha (CRM)
-  const onRowEditComplete = async (e) => {
-    let { newData } = e;
+  // ── Exclusões ──────────────────────────────────────────────────────────────
+  const excluirContato = async (id) => {
+    if (!window.confirm("Excluir este aluno definitivamente?")) return;
+    const { error } = await supabase.from("alunos").delete().eq("id", id);
+    if (error) alert("Erro ao excluir."); else carregarDados();
+  };
 
-    const { error } = await supabase
+  const excluirEmMassa = async (lista, setLista) => {
+    if (lista.length === 0) return;
+    if (!window.confirm(`Excluir ${lista.length} contato(s)?`)) return;
+    const ids = lista.map((s) => s.id).filter(Boolean);
+    const { error } = await supabase.from("alunos").delete().in("id", ids);
+    if (error) alert("Erro ao excluir."); else { setLista([]); carregarDados(); }
+  };
+
+  // ── Edição inline ──────────────────────────────────────────────────────────
+  const onRowEditComplete = async (e) => {
+    const { newData } = e;
+    await supabase
       .from("alunos")
       .update({
         nome: newData.nome,
         telefone: newData.telefone,
         curso: newData.curso,
+        email: newData.email,
         status: newData.status,
         ultima_resposta: newData.ultima_resposta,
       })
       .eq("id", newData.id);
-
-    if (error) {
-      alert("Erro ao salvar as alterações no banco de dados.");
-      console.error(error);
-    } else {
-      carregarDados();
-    }
+    carregarDados();
   };
 
-  // 5. Exportar para Excel
+  // ── Exportar Excel ─────────────────────────────────────────────────────────
   const exportarRelatorio = () => {
-    const dadosExportar = todosAlunos.map((a) => ({
+    const dados = todosAlunos.map((a) => ({
       Nome: a.nome,
       Telefone: a.telefone,
       Curso: a.curso,
+      Email: a.email || "",
       Status: a.status,
-      Interagiu: a.respondeu ? "Sim" : "Não",
-      Feedback: a.ultima_resposta || "Sem observações",
-      Data_Envio: a.data_envio
-        ? new Date(a.data_envio).toLocaleString()
-        : "N/A",
+      Respondeu: a.respondeu ? "SIM" : "NÃO",
+      "Última Resposta": a.ultima_resposta || "",
+      "Data Envio": a.data_envio ? new Date(a.data_envio).toLocaleString("pt-BR") : "",
     }));
-
-    const ws = XLSX.utils.json_to_sheet(dadosExportar);
+    const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Relatorio_Geral");
-    XLSX.writeFile(wb, "CRM_Geracao_Tech_Atualizado.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "Relatório");
+    XLSX.writeFile(wb, `Relatorio_Alunos_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // Templates Visuais
-  const statusBodyTemplate = (rowData) => (
-    <Tag
-      value={rowData.status}
-      severity={
-        rowData.status === "enviado" || rowData.status === "concluido"
-          ? "success"
-          : "warning"
-      }
-    />
+  // ── Templates de células ───────────────────────────────────────────────────
+  const statusTemplate = (row) => {
+    const map = {
+      pendente: "warning",
+      enviado: "success",
+      email_enviado: "info",
+      concluido: "success",
+      erro: "danger",
+    };
+    return <Tag value={row.status} severity={map[row.status] || "warning"} />;
+  };
+
+  const respondeuTemplate = (row) => (
+    <Tag value={row.respondeu ? "SIM" : "NÃO"} severity={row.respondeu ? "success" : "danger"} />
   );
 
-  const respondeuBodyTemplate = (rowData) => (
-    <Tag
-      value={rowData.respondeu ? "SIM" : "NÃO"}
-      severity={rowData.respondeu ? "info" : "danger"}
-    />
+  const textEditor = (options) => (
+    <InputText value={options.value} onChange={(e) => options.editorCallback(e.target.value)} style={{ width: "100%" }} />
   );
 
-  const textEditor = (options) => {
+  // ── Stats do dashboard ─────────────────────────────────────────────────────
+  const total = todosAlunos.length;
+  const contatados = todosAlunos.filter((a) => a.status !== "pendente").length;
+  const responderam = todosAlunos.filter((a) => a.respondeu).length;
+  const pendentes = todosAlunos.filter((a) => a.status === "pendente").length;
+  const taxaEngajamento = total > 0 ? ((responderam / total) * 100).toFixed(1) : "0.0";
+  const taxaContato = total > 0 ? ((contatados / total) * 100).toFixed(1) : "0.0";
+
+  // ── Filtros das tabelas ────────────────────────────────────────────────────
+  const alunosFiltradosGestao = todosAlunos.filter((a) => {
+    if (!filtroGlobal) return true;
+    const q = filtroGlobal.toLowerCase();
     return (
-      <InputText
-        type="text"
-        value={options.value}
-        onChange={(e) => options.editorCallback(e.target.value)}
-      />
+      a.nome?.toLowerCase().includes(q) ||
+      a.telefone?.toLowerCase().includes(q) ||
+      a.curso?.toLowerCase().includes(q) ||
+      a.status?.toLowerCase().includes(q)
     );
-  };
+  });
 
-  // Nova função para enviar mensagens individuais pelo chat e salvar no histórico
-  // Nazaré, esta função fica AQUI, fora do return.
-  const enviarMensagemChat = async () => {
-    if (!textoChat || !alunoSelecionado) return;
-
-    try {
-      await axios.post("http://localhost:3001/send-bulk", {
-        message: textoChat,
-        students: [alunoSelecionado],
-        limit: 1,
-      });
-
-      const novoHistorico = [
-        ...(alunoSelecionado.historico || []),
-        {
-          tipo: "saida",
-          texto: textoChat,
-          data: new Date().toISOString(),
-        },
-      ];
-
-      const { error } = await supabase
-        .from("alunos")
-        .update({
-          historico: novoHistorico,
-          status: "concluido",
-          ultima_resposta: textoChat,
-        })
-        .eq("id", alunoSelecionado.id);
-
-      if (error) throw error;
-
-      setTextoChat("");
-      carregarDados();
-    } catch (error) {
-      console.error("Erro ao enviar mensagem pelo chat:", error);
-      alert("Erro ao enviar mensagem. Verifique se o backend está rodando.");
-    }
-  };
+  const alunosFiltradosEnvio = alunosPendentes.filter((a) => {
+    if (!filtroEnvio) return true;
+    const q = filtroEnvio.toLowerCase();
+    return a.nome?.toLowerCase().includes(q) || a.telefone?.includes(q);
+  });
 
   return (
-    <div className="main-container">
-      <header className="header-section">
-        <h1>Geração Tech CRM 3.0</h1>
-        <p>Gestão de alunos, disparos em lote e acompanhamento de feedbacks.</p>
+    <div className="app-root">
+      {/* ── Topbar ─────────────────────────────────────────────────────────── */}
+      <header className="topbar">
+        <div className="topbar-brand">
+          <div className="topbar-logo">GT</div>
+          <div>
+            <span className="topbar-title">Geração Tech CRM</span>
+            <span className="topbar-sub">3.0 — Sistema de Gestão</span>
+          </div>
+        </div>
+        <div className="topbar-right">
+          {nomeUsuario && (
+            <span className="topbar-user">
+              <i className="pi pi-user" /> {nomeUsuario}
+            </span>
+          )}
+          <button className="topbar-logout" onClick={handleLogout}>
+            <i className="pi pi-sign-out" /> Sair
+          </button>
+        </div>
       </header>
 
-      <TabView>
-        <TabPanel header="Envio de Lotes" leftIcon="pi pi-send mr-2">
-          <div className="custom-card">
-            <h3>Importar e Configurar</h3>
-            <div style={{ display: "flex", gap: "15px", marginBottom: "20px" }}>
-              <input type="file" onChange={handleImport} accept=".xlsx, .xls" />
-              <Button
-                icon="pi pi-refresh"
-                className="p-button-text"
-                onClick={carregarDados}
-              />
-            </div>
-            <InputTextarea
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              rows={5}
-              style={{ width: "100%" }}
-              placeholder="Mensagem..."
-            />
-            <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
-              <Button
-                label={loading ? "Enviando..." : `Enviar Lote (Próximos 50)`}
-                icon="pi pi-forward"
-                className="p-button-outlined p-button-secondary"
-                onClick={dispararMensagens}
-                disabled={loading || alunosPendentes.length === 0}
-              />
-              <Button
-                label={`Enviar Selecionados (${selecionados.length})`}
-                icon="pi pi-check-circle"
-                className="p-button-success"
-                onClick={dispararSelecionados}
-                disabled={loading || selecionados.length === 0}
-              />
-            </div>
-          </div>
+      {/* ── Conteúdo ───────────────────────────────────────────────────────── */}
+      <main className="main-content">
+        <TabView activeIndex={activeIndex} onTabChange={onTabChange}>
 
-          <DataTable
-            value={alunosPendentes}
-            selection={selecionados}
-            onSelectionChange={(e) => setSelecionados(e.value)}
-            dataKey="id"
-            paginator
-            rows={10}
-            className="custom-table"
-            stripedRows
-          >
-            <Column
-              selectionMode="multiple"
-              headerStyle={{ width: "3rem" }}
-            ></Column>
-            <Column field="nome" header="Nome" sortable />
-            <Column field="telefone" header="Telefone" />
-            <Column field="curso" header="Curso" sortable />
-            <Column header="Status" body={statusBodyTemplate} />
-          </DataTable>
-        </TabPanel>
-
-        <TabPanel header="Chat em Tempo Real" leftIcon="pi pi-comments mr-2">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "300px 1fr",
-              gap: "20px",
-              height: "600px",
-            }}
-          >
-            {/* Lista Lateral de Alunos que já foram contatados */}
-            <div
-              style={{
-                borderRight: "1px solid #ddd",
-                overflowY: "auto",
-                background: "#fff",
-              }}
-            >
-              {todosAlunos
-                .filter((a) => a.status !== "pendente")
-                .map((aluno) => (
-                  <div
-                    key={aluno.id}
-                    onClick={() => setAlunoSelecionado(aluno)}
-                    style={{
-                      padding: "15px",
-                      cursor: "pointer",
-                      backgroundColor:
-                        alunoSelecionado?.id === aluno.id ? "#e3f2fd" : "white",
-                      borderBottom: "1px solid #eee",
-                    }}
-                  >
-                    <strong>{aluno.nome}</strong>
-                    <p style={{ margin: 0, fontSize: "0.8em", color: "#666" }}>
-                      {aluno.ultima_resposta?.substring(0, 30) ||
-                        "Sem mensagens..."}
-                    </p>
-                  </div>
-                ))}
-            </div>
-
-            {/* Janela de Mensagens Estilo WhatsApp */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                background: "#f0f2f5",
-              }}
-            >
-              {alunoSelecionado ? (
-                <>
-                  <div
-                    style={{
-                      padding: "15px",
-                      background: "#fff",
-                      borderBottom: "1px solid #ddd",
-                    }}
-                  >
-                    <strong>Conversando com: {alunoSelecionado.nome}</strong>
-                  </div>
-
-                  <div
-                    style={{
-                      flex: 1,
-                      padding: "20px",
-                      overflowY: "auto",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "10px",
-                    }}
-                  >
-                    {/* Mapeia o histórico para criar bolhas de ENTRADA e SAÍDA */}
-                    {(alunoSelecionado.historico || []).map((msg, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          alignSelf:
-                            msg.tipo === "saida" ? "flex-end" : "flex-start",
-                          background: msg.tipo === "saida" ? "#dcf8c6" : "#fff",
-                          padding: "8px 12px",
-                          borderRadius: "8px",
-                          maxWidth: "70%",
-                          boxShadow: "0 1px 1px rgba(0,0,0,0.1)",
-                          fontSize: "0.9em",
-                        }}
-                      >
-                        {msg.texto}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      padding: "15px",
-                      background: "#fff",
-                    }}
-                  >
-                    <InputText
-                      value={textoChat}
-                      onChange={(e) => setTextoChat(e.target.value)}
-                      style={{ flex: 1 }}
-                      placeholder="Digite sua resposta..."
-                      onKeyPress={(e) =>
-                        e.key === "Enter" && enviarMensagemChat()
-                      }
-                    />
-                    <Button icon="pi pi-send" onClick={enviarMensagemChat} />
-                  </div>
-                </>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    height: "100%",
-                    color: "#888",
-                  }}
-                >
-                  Selecione um aluno na lista ao lado para ver a conversa.
+          {/* ══ Aba 1: Disparo WhatsApp ══════════════════════════════════════ */}
+          <TabPanel header="Disparo WhatsApp" leftIcon="pi pi-whatsapp mr-2">
+            <div className="card mb-4">
+              <div className="card-header">
+                <div>
+                  <h3>Importar Planilha & Configurar Mensagem</h3>
+                  <p>Colunas esperadas: nome, telefone, curso, email</p>
                 </div>
-              )}
-            </div>
-          </div>
-        </TabPanel>
-
-        <TabPanel header="Gestão & Relatórios" leftIcon="pi pi-users mr-2">
-          <div
-            className="custom-card"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <div>
-              <h3>Base de Dados Geral</h3>
-              <p>
-                <small>
-                  Selecione os contatos para exclusão em massa ou use o lápis
-                  para editar.
-                </small>
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              {/* Botão de Excluir em Massa - Só aparece se houver selecionados */}
-              {selecionados.length > 0 && (
-                <Button
-                  label={`Excluir (${selecionados.length})`}
-                  icon="pi pi-trash"
-                  className="p-button-danger"
-                  onClick={excluirEmMassa}
-                />
-              )}
-              <Button
-                label="Exportar Excel"
-                icon="pi pi-file-excel"
-                className="p-button-success"
-                onClick={exportarRelatorio}
-              />
-            </div>
-          </div>
-
-          <DataTable
-            value={todosAlunos}
-            selection={selecionados}
-            onSelectionChange={(e) => setSelecionados(e.value)}
-            dataKey="id"
-            editMode="row"
-            onRowEditComplete={onRowEditComplete}
-            paginator
-            rows={10}
-          >
-            {/* Coluna de Checkbox para seleção */}
-            <Column
-              selectionMode="multiple"
-              headerStyle={{ width: "3rem" }}
-            ></Column>
-
-            <Column
-              field="nome"
-              header="Nome"
-              editor={(o) => textEditor(o)}
-              sortable
-            />
-            <Column
-              field="telefone"
-              header="Telefone"
-              editor={(o) => textEditor(o)}
-            />
-            <Column
-              field="status"
-              header="Status"
-              body={statusBodyTemplate}
-              editor={(o) => textEditor(o)}
-            />
-            <Column
-              field="ultima_resposta"
-              header="Feedback"
-              editor={(options) => (
+                <div className="flex-gap">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleImport}
+                    style={{ display: "none" }}
+                  />
+                  <Button
+                    icon="pi pi-upload"
+                    label="Importar Excel"
+                    className="p-button-outlined"
+                    onClick={() => fileInputRef.current?.click()}
+                  />
+                  <Button
+                    icon="pi pi-refresh"
+                    className="p-button-text"
+                    onClick={carregarDados}
+                    tooltip="Atualizar lista"
+                  />
+                </div>
+              </div>
+              <div className="card-body">
+                <label className="field-label">
+                  Mensagem (use {"{nome}"} e {"{curso}"})
+                </label>
                 <InputTextarea
-                  value={options.value || ""}
-                  onChange={(e) => options.editorCallback(e.target.value)}
-                  rows={2}
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  rows={4}
                   style={{ width: "100%" }}
+                  placeholder="Olá {nome}, confirmamos sua inscrição no curso de {curso}!"
                 />
-              )}
-            />
+                <div className="flex-gap mt-3">
+                  <Button
+                    label={loading ? "Enviando..." : `Disparar Lote (${alunosFiltradosEnvio.length} pendentes)`}
+                    icon="pi pi-send"
+                    onClick={dispararLote}
+                    disabled={loading || alunosFiltradosEnvio.length === 0}
+                  />
+                  <Button
+                    label={`Enviar Selecionados (${selecionadosPendentes.length})`}
+                    icon="pi pi-check-circle"
+                    className="p-button-success"
+                    onClick={dispararSelecionados}
+                    disabled={loading || selecionadosPendentes.length === 0}
+                  />
+                  {selecionadosPendentes.length > 0 && (
+                    <Button
+                      label="Excluir Selecionados"
+                      icon="pi pi-trash"
+                      className="p-button-danger p-button-outlined"
+                      onClick={() => excluirEmMassa(selecionadosPendentes, setSelecionadosPendentes)}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
 
-            <Column
-              rowEditor
-              headerStyle={{ width: "7rem" }}
-              bodyStyle={{ textAlign: "center" }}
-            />
+            <div className="table-toolbar">
+              <span className="p-input-icon-left">
+                <i className="pi pi-search" />
+                <InputText
+                  value={filtroEnvio}
+                  onChange={(e) => setFiltroEnvio(e.target.value)}
+                  placeholder="Buscar por nome ou telefone..."
+                  className="search-input"
+                />
+              </span>
+              <span className="table-count">{alunosFiltradosEnvio.length} contato(s) pendente(s)</span>
+            </div>
 
-            {/* Botão de Excluir Individual */}
-            <Column
-              body={(rowData) => (
+            <DataTable
+              value={alunosFiltradosEnvio}
+              selection={selecionadosPendentes}
+              onSelectionChange={(e) => setSelecionadosPendentes(e.value)}
+              dataKey="id"
+              paginator
+              rows={10}
+              rowsPerPageOptions={[10, 25, 50]}
+              emptyMessage="Nenhum contato pendente."
+              className="crm-table"
+              stripedRows
+            >
+              <Column selectionMode="multiple" style={{ width: "3rem" }} />
+              <Column field="nome" header="Nome" sortable />
+              <Column field="telefone" header="Telefone" />
+              <Column field="curso" header="Curso" sortable />
+              <Column header="Status" body={statusTemplate} />
+            </DataTable>
+          </TabPanel>
+
+          {/* ══ Aba 2: Gestão & Relatórios ══════════════════════════════════ */}
+          <TabPanel header="Gestão & Relatórios" leftIcon="pi pi-users mr-2">
+            <div className="card mb-4">
+              <div className="card-header">
+                <div>
+                  <h3>Contatos Pendentes</h3>
+                  <p>Selecione para excluir em massa</p>
+                </div>
+                {selecionados.length > 0 && (
+                  <Button
+                    label={`Excluir (${selecionados.length})`}
+                    icon="pi pi-trash"
+                    className="p-button-danger"
+                    onClick={() => excluirEmMassa(selecionados, setSelecionados)}
+                  />
+                )}
+              </div>
+              <div className="card-body">
+                <DataTable
+                  value={todosAlunos.filter((a) => a.status === "pendente")}
+                  selection={selecionados}
+                  onSelectionChange={(e) => setSelecionados(e.value)}
+                  dataKey="id"
+                  paginator
+                  rows={5}
+                  emptyMessage="Nenhum contato pendente."
+                  className="crm-table"
+                >
+                  <Column selectionMode="multiple" style={{ width: "3rem" }} />
+                  <Column field="nome" header="Nome" />
+                  <Column field="telefone" header="Telefone" />
+                  <Column field="curso" header="Curso" />
+                </DataTable>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h3>Histórico Geral</h3>
+                  <p>Clique no lápis para editar um contato</p>
+                </div>
+                <div className="flex-gap">
+                  <span className="p-input-icon-left">
+                    <i className="pi pi-search" />
+                    <InputText
+                      value={filtroGlobal}
+                      onChange={(e) => setFiltroGlobal(e.target.value)}
+                      placeholder="Buscar..."
+                      className="search-input"
+                    />
+                  </span>
+                  <Button
+                    label="Exportar Excel"
+                    icon="pi pi-file-excel"
+                    className="p-button-success"
+                    onClick={exportarRelatorio}
+                  />
+                </div>
+              </div>
+              <div className="card-body" style={{ padding: 0 }}>
+                <DataTable
+                  value={alunosFiltradosGestao}
+                  editMode="row"
+                  onRowEditComplete={onRowEditComplete}
+                  dataKey="id"
+                  paginator
+                  rows={10}
+                  rowsPerPageOptions={[10, 25, 50]}
+                  emptyMessage="Nenhum registro encontrado."
+                  className="crm-table"
+                  stripedRows
+                >
+                  <Column field="nome" header="Nome" editor={textEditor} sortable />
+                  <Column field="telefone" header="Telefone" editor={textEditor} />
+                  <Column field="curso" header="Curso" editor={textEditor} />
+                  <Column field="email" header="E-mail" editor={textEditor} />
+                  <Column header="Status" body={statusTemplate} editor={textEditor} />
+                  <Column header="Respondeu" body={respondeuTemplate} />
+                  <Column field="ultima_resposta" header="Feedback" editor={textEditor} />
+                  <Column rowEditor style={{ width: "6rem" }} />
+                  <Column
+                    body={(row) => (
+                      <Button
+                        icon="pi pi-trash"
+                        className="p-button-danger p-button-text p-button-sm"
+                        onClick={() => excluirContato(row.id)}
+                        tooltip="Excluir"
+                      />
+                    )}
+                    style={{ width: "4rem" }}
+                  />
+                </DataTable>
+              </div>
+            </div>
+          </TabPanel>
+
+          {/* ══ Aba 3: Chat WhatsApp ═════════════════════════════════════════ */}
+          <TabPanel header="Chat WhatsApp" leftIcon="pi pi-whatsapp mr-2">
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h3>Conversas WhatsApp</h3>
+                  <p>Histórico e respostas em tempo real por contato</p>
+                </div>
+              </div>
+              <div className="whats-chat-layout">
+                {/* Lista lateral de contatos que já foram contatados */}
+                <div className="whats-sidebar">
+                  <div className="whats-sidebar-header">Contatos</div>
+                  {todosAlunos.filter((a) => a.status !== "pendente").length === 0 ? (
+                    <div className="whats-empty">
+                      <i className="pi pi-inbox" />
+                      <p>Nenhum contato ainda</p>
+                    </div>
+                  ) : (
+                    todosAlunos
+                      .filter((a) => a.status !== "pendente")
+                      .map((aluno) => (
+                        <div
+                          key={aluno.id}
+                          className={"whats-contact " + (alunoChat?.id === aluno.id ? "whats-contact-ativo" : "")}
+                          onClick={() => setAlunoChat(aluno)}
+                        >
+                          <div className="whats-avatar">
+                            {aluno.nome?.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="whats-contact-info">
+                            <strong>{aluno.nome}</strong>
+                            <span>
+                              {aluno.ultima_resposta
+                                ? aluno.ultima_resposta.substring(0, 28) + "..."
+                                : "Sem mensagens"}
+                            </span>
+                          </div>
+                          {aluno.respondeu && aluno.status !== "concluido" && (
+                            <span className="whats-badge-new">NOVO</span>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+
+                {/* Janela de chat */}
+                <div className="whats-chat">
+                  {alunoChat ? (
+                    <>
+                      <div className="whats-chat-header">
+                        <div className="whats-avatar">
+                          {alunoChat.nome?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <strong>{alunoChat.nome}</strong>
+                          <span>{alunoChat.telefone}</span>
+                        </div>
+                        <Tag
+                          value={alunoChat.status}
+                          severity={
+                            alunoChat.status === "concluido" || alunoChat.status === "enviado"
+                              ? "success"
+                              : "warning"
+                          }
+                        />
+                      </div>
+
+                      <div className="whats-messages">
+                        {(!alunoChat.historico || alunoChat.historico.length === 0) ? (
+                          <div className="whats-msg-vazio">
+                            Nenhuma mensagem ainda nesta conversa.
+                          </div>
+                        ) : (
+                          alunoChat.historico.map((msg, i) => (
+                            <div
+                              key={i}
+                              className={"whats-bubble " + (msg.tipo === "saida" ? "whats-bubble-saida" : "whats-bubble-entrada")}
+                            >
+                              <span>{msg.texto}</span>
+                              <time>
+                                {new Date(msg.data).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </time>
+                            </div>
+                          ))
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
+
+                      <div className="whats-input-area">
+                        <input
+                          type="text"
+                          placeholder="Responder via WhatsApp..."
+                          value={msgWhats}
+                          onChange={(e) => setMsgWhats(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && enviarMensagemWhats()}
+                        />
+                        <button
+                          onClick={enviarMensagemWhats}
+                          disabled={enviandoWhats || !msgWhats.trim()}
+                        >
+                          <i className="pi pi-send" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="whats-placeholder">
+                      <i className="pi pi-comments" />
+                      <p>Selecione um contato para ver a conversa</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabPanel>
+
+          {/* ══ Aba 4: Suporte ao Aluno ══════════════════════════════════════ */}
+          <TabPanel header="Suporte ao Aluno" leftIcon="pi pi-headphones mr-2">
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h3>Chat de Suporte em Tempo Real</h3>
+                  <p>Responda os chamados abertos pelos alunos via portal</p>
+                </div>
+                <a
+                  href="/suporte"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="link-suporte"
+                >
+                  <i className="pi pi-external-link" /> Abrir Portal do Aluno
+                </a>
+              </div>
+              <div className="card-body" style={{ padding: 0 }}>
+                <AtendimentoChat />
+              </div>
+            </div>
+          </TabPanel>
+
+          {/* ══ Aba 4: Disparo de E-mail ═════════════════════════════════════ */}
+          <TabPanel header="Disparo E-mail" leftIcon="pi pi-envelope mr-2">
+            <div className="card mb-4">
+              <div className="card-header">
+                <div>
+                  <h3>1. Selecionar Destinatários</h3>
+                  <p>Apenas alunos com e-mail cadastrado aparecem aqui</p>
+                </div>
+                <div className="flex-gap">
+                  <input
+                    ref={fileEmailInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleImport}
+                    style={{ display: "none" }}
+                  />
+                  <Button
+                    icon="pi pi-upload"
+                    label="Importar Excel"
+                    className="p-button-outlined"
+                    onClick={() => fileEmailInputRef.current?.click()}
+                  />
+                </div>
+              </div>
+              <div className="card-body" style={{ padding: 0 }}>
+                <DataTable
+                  value={todosAlunos.filter((a) => a.email)}
+                  selection={selecionados}
+                  onSelectionChange={(e) => setSelecionados(e.value)}
+                  dataKey="id"
+                  paginator
+                  rows={5}
+                  emptyMessage="Nenhum aluno com e-mail encontrado. Importe uma planilha com a coluna 'email'."
+                  className="crm-table"
+                >
+                  <Column selectionMode="multiple" style={{ width: "3rem" }} />
+                  <Column field="nome" header="Nome" sortable />
+                  <Column field="email" header="E-mail" />
+                  <Column field="curso" header="Curso" />
+                  <Column header="Status" body={statusTemplate} />
+                </DataTable>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-header">
+                <div>
+                  <h3>2. Configurar E-mail</h3>
+                  <p>Use {"{nome}"} e {"{curso}"} como variáveis personalizadas</p>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="email-field">
+                  <label>Assunto</label>
+                  <InputText
+                    value={assunto}
+                    onChange={(e) => setAssunto(e.target.value)}
+                    placeholder="[Geração Tech] Confirmação de Matrícula"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+                <div className="email-field mt-3">
+                  <label>Corpo da mensagem</label>
+                  <InputTextarea
+                    value={corpoEmail}
+                    onChange={(e) => setCorpoEmail(e.target.value)}
+                    rows={6}
+                    style={{ width: "100%" }}
+                    placeholder="Olá {nome}, confirmamos sua inscrição no curso de {curso}..."
+                  />
+                </div>
                 <Button
-                  icon="pi pi-trash"
-                  className="p-button-danger p-button-text"
-                  onClick={() => excluirContato(rowData.id)}
+                  label={
+                    loading
+                      ? "Enviando..."
+                      : `Enviar para ${selecionados.length} destinatário(s)`
+                  }
+                  icon="pi pi-send"
+                  className="p-button-success mt-3"
+                  onClick={dispararEmails}
+                  disabled={loading || selecionados.length === 0}
                 />
-              )}
-            />
-          </DataTable>
-        </TabPanel>
-        <TabPanel header="Dashboard" leftIcon="pi pi-chart-bar mr-2">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "20px",
-            }}
-          >
-            <div className="stat-box">
-              <h4>Total de Alunos</h4>
-              <h2>{todosAlunos.length}</h2>
+              </div>
             </div>
-            <div className="stat-box">
-              <h4>Contatados</h4>
-              <h2>
-                {
-                  todosAlunos.filter(
-                    (a) => a.status === "enviado" || a.status === "concluido",
-                  ).length
-                }
-              </h2>
+          </TabPanel>
+
+          {/* ══ Aba 5: Dashboard ═════════════════════════════════════════════ */}
+          <TabPanel header="Dashboard" leftIcon="pi pi-chart-bar mr-2">
+            <div className="stats-grid">
+              <div className="stat-card stat-blue">
+                <div className="stat-icon"><i className="pi pi-users" /></div>
+                <div className="stat-body">
+                  <span>Total de Alunos</span>
+                  <strong>{total}</strong>
+                </div>
+              </div>
+              <div className="stat-card stat-orange">
+                <div className="stat-icon"><i className="pi pi-clock" /></div>
+                <div className="stat-body">
+                  <span>Pendentes</span>
+                  <strong>{pendentes}</strong>
+                </div>
+              </div>
+              <div className="stat-card stat-green">
+                <div className="stat-icon"><i className="pi pi-send" /></div>
+                <div className="stat-body">
+                  <span>Contatados</span>
+                  <strong>{contatados}</strong>
+                </div>
+              </div>
+              <div className="stat-card stat-purple">
+                <div className="stat-icon"><i className="pi pi-comments" /></div>
+                <div className="stat-body">
+                  <span>Responderam</span>
+                  <strong>{responderam}</strong>
+                </div>
+              </div>
             </div>
-            <div className="stat-box">
-              <h4>Respostas Recebidas</h4>
-              <h2>{todosAlunos.filter((a) => a.respondeu).length}</h2>
+
+            <div className="dashboard-row">
+              <div className="card flex-1">
+                <div className="card-header"><h3>Taxa de Contato</h3></div>
+                <div className="card-body dashboard-metric">
+                  <div className="metric-value" style={{ color: "#1A6BBF" }}>
+                    {taxaContato}%
+                  </div>
+                  <p>{contatados} de {total} alunos foram contatados</p>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${taxaContato}%`, background: "#1A6BBF" }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="card flex-1">
+                <div className="card-header"><h3>Taxa de Engajamento</h3></div>
+                <div className="card-body dashboard-metric">
+                  <div className="metric-value" style={{ color: "#16A34A" }}>
+                    {taxaEngajamento}%
+                  </div>
+                  <p>{responderam} de {total} alunos responderam</p>
+                  <div className="progress-bar">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${taxaEngajamento}%`, background: "#16A34A" }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="custom-card" style={{ marginTop: "20px" }}>
-            <h3>Taxa de Engajamento</h3>
-            <h1 style={{ color: "var(--accent-blue)", fontSize: "3rem" }}>
-              {(
-                (todosAlunos.filter((a) => a.respondeu).length /
-                  todosAlunos.length) *
-                  100 || 0
-              ).toFixed(1)}
-              %
-            </h1>
-            <p>Dos alunos cadastrados interagiram com suas mensagens.</p>
-          </div>
-        </TabPanel>
-      </TabView>
+
+            {/* Distribuição por status */}
+            <div className="card mt-4">
+              <div className="card-header"><h3>Distribuição por Status</h3></div>
+              <div className="card-body status-dist">
+                {[
+                  { label: "Pendente", key: "pendente", color: "#D97706" },
+                  { label: "Enviado", key: "enviado", color: "#2563EB" },
+                  { label: "E-mail enviado", key: "email_enviado", color: "#7C3AED" },
+                  { label: "Concluído", key: "concluido", color: "#16A34A" },
+                  { label: "Erro", key: "erro", color: "#DC2626" },
+                ].map(({ label, key, color }) => {
+                  const count = todosAlunos.filter((a) => a.status === key).length;
+                  const pct = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                  return (
+                    <div key={key} className="dist-item">
+                      <div className="dist-label">
+                        <span style={{ background: color }} className="dist-dot" />
+                        {label}
+                      </div>
+                      <div className="dist-bar-wrap">
+                        <div className="dist-bar">
+                          <div className="dist-bar-fill" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                        <span className="dist-count">{count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </TabPanel>
+
+        </TabView>
+      </main>
     </div>
   );
 }
 
-export default App;
+export default AppRouter;
