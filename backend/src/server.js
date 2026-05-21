@@ -250,9 +250,7 @@ wppconnect
     session: "geracao-tech",
     autoClose: false,
     puppeteerOptions: {
-      executablePath:
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/run/current-system/sw/bin/chromium",
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
