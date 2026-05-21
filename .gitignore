@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .cache/
+.env/
 
 # navegador/chrome
 Default/
@@ -16,4 +17,6 @@ backend/tokens/
 
 # sistema
 .DS_Store
-Thumbs.db
+Thumbs.dbbackend/.env
+frontend/.env
+.env
