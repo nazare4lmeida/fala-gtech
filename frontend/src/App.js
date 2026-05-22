@@ -19,8 +19,6 @@ import "primereact/resources/themes/lara-light-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 
-// ─── Rota pública: /suporte ────────────────────────────────────────────────────
-// Renderizado fora do App para não violar regras de hooks
 function AppRouter() {
   if (window.location.pathname === "/suporte") {
     return <SuporteAluno />;
@@ -28,10 +26,9 @@ function AppRouter() {
   return <App />;
 }
 
-// ─── App principal ────────────────────────────────────────────────────────────
 function App() {
   const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
-  // ── TODOS os hooks ANTES de qualquer return ────────────────────────────────
+
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [nomeUsuario, setNomeUsuario] = useState(
     localStorage.getItem("nomeUsuario") || "",
@@ -58,18 +55,15 @@ function App() {
   const fileInputRef = useRef(null);
   const fileEmailInputRef = useRef(null);
 
-  // ── Estados do Chat WhatsApp ───────────────────────────────────────────────
   const [alunoChat, setAlunoChat] = useState(null);
   const [msgWhats, setMsgWhats] = useState("");
   const [enviandoWhats, setEnviandoWhats] = useState(false);
   const chatEndRef = useRef(null);
 
-  // ── Scroll automático do chat WhatsApp ───────────────────────────────────────
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [alunoChat]);
 
-  // ── Atualiza o alunoChat em tempo real quando os dados recarregam ─────────
   useEffect(() => {
     if (alunoChat) {
       const atualizado = todosAlunos.find((a) => a.id === alunoChat.id);
@@ -77,21 +71,14 @@ function App() {
     }
   }, [todosAlunos]);
 
-  // ── Envia mensagem individual pelo WhatsApp ───────────────────────────────
   const enviarMensagemWhats = async () => {
     if (!msgWhats.trim() || !alunoChat || enviandoWhats) return;
     setEnviandoWhats(true);
     try {
       await axios.post(
         `${BACKEND}/send-bulk`,
-        {
-          message: msgWhats,
-          students: [alunoChat],
-          limit: 1,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        { message: msgWhats, students: [alunoChat], limit: 1 },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setMsgWhats("");
     } catch {
@@ -101,7 +88,74 @@ function App() {
     }
   };
 
-  // ── Carrega dados do Supabase ──────────────────────────────────────────────
+  // ── Renderiza mídias do histórico WhatsApp ────────────────────────────────
+  const renderMidia = (msg) => {
+    const texto = msg.texto || "";
+
+    // Áudio
+    if (
+      msg.mimetype?.startsWith("audio") ||
+      /\.(ogg|mp3|opus|m4a|wav)$/i.test(texto)
+    ) {
+      const src = msg.mediaUrl || texto;
+      return (
+        <div className="whats-midia-audio">
+          <i className="pi pi-microphone" />
+          <audio
+            controls
+            src={src}
+            style={{ maxWidth: "220px", height: "36px" }}
+          >
+            Seu navegador não suporta áudio.
+          </audio>
+        </div>
+      );
+    }
+
+    // Imagem
+    if (
+      msg.mimetype?.startsWith("image") ||
+      /\.(jpg|jpeg|png|gif|webp)$/i.test(texto)
+    ) {
+      const src = msg.mediaUrl || texto;
+      return (
+        <img
+          src={src}
+          alt="imagem"
+          className="whats-midia-img"
+          onClick={() => window.open(src, "_blank")}
+        />
+      );
+    }
+
+    // Arquivo/documento
+    if (
+      msg.mimetype === "application/pdf" ||
+      /\.(pdf|doc|docx|xlsx|zip)$/i.test(texto)
+    ) {
+      const src = msg.mediaUrl || texto;
+      return (
+        <a
+          href={src}
+          target="_blank"
+          rel="noreferrer"
+          className="whats-midia-arquivo"
+        >
+          <i className="pi pi-file" />
+          <span>{msg.filename || "Arquivo anexado"}</span>
+          <i className="pi pi-download" />
+        </a>
+      );
+    }
+
+    // Texto normal (inclui emojis — pre-wrap garante renderização correta)
+    return (
+      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+        {texto}
+      </span>
+    );
+  };
+
   const carregarDados = async () => {
     const { data, error } = await supabase
       .from("alunos")
@@ -119,33 +173,23 @@ function App() {
 
   useEffect(() => {
     if (!token) return;
-
-    // Carrega dados iniciais
     carregarDados();
-
-    // Realtime: escuta qualquer INSERT, UPDATE ou DELETE na tabela alunos
     const channel = supabase
       .channel("alunos_realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "alunos" },
         () => {
-          // Recarrega toda a lista quando qualquer coisa mudar
           carregarDados();
         },
       )
       .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
+        if (status === "SUBSCRIBED")
           console.log("✅ Realtime conectado na tabela alunos");
-        }
       });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [token]);
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("nomeUsuario");
@@ -158,7 +202,6 @@ function App() {
     localStorage.setItem("activeTab", e.index.toString());
   };
 
-  // ── Guard de login (DEPOIS dos hooks) ─────────────────────────────────────
   if (!token) {
     return (
       <Login
@@ -170,7 +213,6 @@ function App() {
     );
   }
 
-  // ── Importar Excel ─────────────────────────────────────────────────────────
   const handleImport = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -179,7 +221,6 @@ function App() {
       const wb = XLSX.read(evt.target.result, { type: "binary" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rawData = XLSX.utils.sheet_to_json(ws);
-
       const alunos = rawData
         .map((row) => {
           const nome = row.nome || row.Nome || row.NOME;
@@ -206,7 +247,6 @@ function App() {
         );
         return;
       }
-
       const { error } = await supabase.from("alunos").insert(alunos);
       if (error) alert(`Erro: ${error.message}`);
       else {
@@ -218,7 +258,6 @@ function App() {
     e.target.value = "";
   };
 
-  // ── Disparo WhatsApp ───────────────────────────────────────────────────────
   const dispararLote = async () => {
     if (alunosPendentes.length === 0) return;
     setLoading(true);
@@ -261,7 +300,6 @@ function App() {
     }
   };
 
-  // ── Disparo de E-mail ──────────────────────────────────────────────────────
   const dispararEmails = async () => {
     if (selecionados.length === 0) return;
     if (!assunto || !corpoEmail) {
@@ -277,11 +315,10 @@ function App() {
       );
       const { message, falhas } = res.data;
       let aviso = `✅ ${message}`;
-      if (falhas?.length > 0) {
+      if (falhas?.length > 0)
         aviso +=
           `\n\n⚠️ Falhas (${falhas.length}):\n` +
           falhas.map((f) => `• ${f.nome}: ${f.motivo}`).join("\n");
-      }
       alert(aviso);
       setSelecionados([]);
       carregarDados();
@@ -295,7 +332,6 @@ function App() {
     }
   };
 
-  // ── Exclusões ──────────────────────────────────────────────────────────────
   const excluirContato = async (id) => {
     if (!window.confirm("Excluir este aluno definitivamente?")) return;
     const { error } = await supabase.from("alunos").delete().eq("id", id);
@@ -315,7 +351,6 @@ function App() {
     }
   };
 
-  // ── Edição inline ──────────────────────────────────────────────────────────
   const onRowEditComplete = async (e) => {
     const { newData } = e;
     await supabase
@@ -332,7 +367,6 @@ function App() {
     carregarDados();
   };
 
-  // ── Exportar Excel ─────────────────────────────────────────────────────────
   const exportarRelatorio = () => {
     const dados = todosAlunos.map((a) => ({
       Nome: a.nome,
@@ -355,7 +389,6 @@ function App() {
     );
   };
 
-  // ── Templates de células ───────────────────────────────────────────────────
   const statusTemplate = (row) => {
     const map = {
       pendente: "warning",
@@ -382,7 +415,6 @@ function App() {
     />
   );
 
-  // ── Stats do dashboard ─────────────────────────────────────────────────────
   const total = todosAlunos.length;
   const contatados = todosAlunos.filter((a) => a.status !== "pendente").length;
   const responderam = todosAlunos.filter((a) => a.respondeu).length;
@@ -392,7 +424,6 @@ function App() {
   const taxaContato =
     total > 0 ? ((contatados / total) * 100).toFixed(1) : "0.0";
 
-  // ── Filtros das tabelas ────────────────────────────────────────────────────
   const alunosFiltradosGestao = todosAlunos.filter((a) => {
     if (!filtroGlobal) return true;
     const q = filtroGlobal.toLowerCase();
@@ -412,7 +443,6 @@ function App() {
 
   return (
     <div className="app-root">
-      {/* ── Topbar ─────────────────────────────────────────────────────────── */}
       <header className="topbar">
         <div className="topbar-brand">
           <div className="topbar-logo">GT</div>
@@ -433,7 +463,6 @@ function App() {
         </div>
       </header>
 
-      {/* ── Conteúdo ───────────────────────────────────────────────────────── */}
       <main className="main-content">
         <TabView activeIndex={activeIndex} onTabChange={onTabChange}>
           {/* ══ Aba 1: Disparo WhatsApp ══════════════════════════════════════ */}
@@ -673,7 +702,6 @@ function App() {
                 </div>
               </div>
               <div className="whats-chat-layout">
-                {/* Lista lateral de contatos que já foram contatados */}
                 <div className="whats-sidebar">
                   <div className="whats-sidebar-header">Contatos</div>
                   {todosAlunos.filter((a) => a.status !== "pendente").length ===
@@ -715,7 +743,6 @@ function App() {
                   )}
                 </div>
 
-                {/* Janela de chat */}
                 <div className="whats-chat">
                   {alunoChat ? (
                     <>
@@ -755,14 +782,11 @@ function App() {
                                   : "whats-bubble-entrada")
                               }
                             >
-                              <span>{msg.texto}</span>
+                              {renderMidia(msg)}
                               <time>
                                 {new Date(msg.data).toLocaleTimeString(
                                   "pt-BR",
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
+                                  { hour: "2-digit", minute: "2-digit" },
                                 )}
                               </time>
                             </div>
@@ -823,7 +847,7 @@ function App() {
             </div>
           </TabPanel>
 
-          {/* ══ Aba 4: Disparo de E-mail ═════════════════════════════════════ */}
+          {/* ══ Aba 5: Disparo E-mail ═════════════════════════════════════════ */}
           <TabPanel header="Disparo E-mail" leftIcon="pi pi-envelope mr-2">
             <div className="card mb-4">
               <div className="card-header">
@@ -911,7 +935,7 @@ function App() {
             </div>
           </TabPanel>
 
-          {/* ══ Aba 5: Dashboard ═════════════════════════════════════════════ */}
+          {/* ══ Aba 6: Dashboard ═════════════════════════════════════════════ */}
           <TabPanel header="Dashboard" leftIcon="pi pi-chart-bar mr-2">
             <div className="stats-grid">
               <div className="stat-card stat-blue">
@@ -975,7 +999,6 @@ function App() {
                   </div>
                 </div>
               </div>
-
               <div className="card flex-1">
                 <div className="card-header">
                   <h3>Taxa de Engajamento</h3>
@@ -1000,7 +1023,6 @@ function App() {
               </div>
             </div>
 
-            {/* Distribuição por status */}
             <div className="card mt-4">
               <div className="card-header">
                 <h3>Distribuição por Status</h3>
