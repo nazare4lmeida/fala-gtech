@@ -30,21 +30,30 @@ function AppRouter() {
 
 // ─── App principal ────────────────────────────────────────────────────────────
 function App() {
+  const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
   // ── TODOS os hooks ANTES de qualquer return ────────────────────────────────
   const [token, setToken] = useState(localStorage.getItem("token"));
-  const [nomeUsuario, setNomeUsuario] = useState(localStorage.getItem("nomeUsuario") || "");
+  const [nomeUsuario, setNomeUsuario] = useState(
+    localStorage.getItem("nomeUsuario") || "",
+  );
   const [todosAlunos, setTodosAlunos] = useState([]);
   const [alunosPendentes, setAlunosPendentes] = useState([]);
   const [selecionados, setSelecionados] = useState([]);
   const [selecionadosPendentes, setSelecionadosPendentes] = useState([]);
-  const [mensagem, setMensagem] = useState("Olá {nome}, confirmamos sua inscrição no curso de {curso}!");
-  const [assunto, setAssunto] = useState("[Geração Tech] Confirmação de Matrícula");
-  const [corpoEmail, setCorpoEmail] = useState("Olá {nome}, confirmamos sua inscrição no curso de {curso}.\n\nFique atento às próximas comunicações da equipe.");
+  const [mensagem, setMensagem] = useState(
+    "Olá {nome}, confirmamos sua inscrição no curso de {curso}!",
+  );
+  const [assunto, setAssunto] = useState(
+    "[Geração Tech] Confirmação de Matrícula",
+  );
+  const [corpoEmail, setCorpoEmail] = useState(
+    "Olá {nome}, confirmamos sua inscrição no curso de {curso}.\n\nFique atento às próximas comunicações da equipe.",
+  );
   const [loading, setLoading] = useState(false);
   const [filtroGlobal, setFiltroGlobal] = useState("");
   const [filtroEnvio, setFiltroEnvio] = useState("");
   const [activeIndex, setActiveIndex] = useState(
-    parseInt(localStorage.getItem("activeTab") || "0", 10)
+    parseInt(localStorage.getItem("activeTab") || "0", 10),
   );
   const fileInputRef = useRef(null);
   const fileEmailInputRef = useRef(null);
@@ -74,9 +83,15 @@ function App() {
     setEnviandoWhats(true);
     try {
       await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
-        { message: msgWhats, students: [alunoChat], limit: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${BACKEND}/send-bulk`,
+        {
+          message: msgWhats,
+          students: [alunoChat],
+          limit: 1,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       setMsgWhats("");
     } catch {
@@ -92,7 +107,10 @@ function App() {
       .from("alunos")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) { console.error("Erro ao carregar alunos:", error); return; }
+    if (error) {
+      console.error("Erro ao carregar alunos:", error);
+      return;
+    }
     if (data) {
       setTodosAlunos(data);
       setAlunosPendentes(data.filter((a) => a.status === "pendente"));
@@ -114,7 +132,7 @@ function App() {
         () => {
           // Recarrega toda a lista quando qualquer coisa mudar
           carregarDados();
-        }
+        },
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
@@ -183,7 +201,9 @@ function App() {
         .filter(Boolean);
 
       if (alunos.length === 0) {
-        alert("Nenhum aluno válido encontrado. Verifique as colunas: nome, telefone, curso, email.");
+        alert(
+          "Nenhum aluno válido encontrado. Verifique as colunas: nome, telefone, curso, email.",
+        );
         return;
       }
 
@@ -204,13 +224,15 @@ function App() {
     setLoading(true);
     try {
       await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
+        `${BACKEND}/send-bulk`,
         { message: mensagem, students: alunosPendentes, limit: 50 },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       alert("Lote iniciado! Acompanhe os status na tabela.");
     } catch {
-      alert("Erro: verifique se o backend está rodando e o WhatsApp conectado.");
+      alert(
+        "Erro: verifique se o backend está rodando e o WhatsApp conectado.",
+      );
     } finally {
       setLoading(false);
       setTimeout(carregarDados, 3000);
@@ -222,9 +244,13 @@ function App() {
     setLoading(true);
     try {
       await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/send-bulk`,
-        { message: mensagem, students: selecionadosPendentes, limit: selecionadosPendentes.length },
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${BACKEND}/send-bulk`,
+        {
+          message: mensagem,
+          students: selecionadosPendentes,
+          limit: selecionadosPendentes.length,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       alert(`Disparo iniciado para ${selecionadosPendentes.length} aluno(s)!`);
       setSelecionadosPendentes([]);
@@ -245,20 +271,25 @@ function App() {
     setLoading(true);
     try {
       const res = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/send-email-bulk`,
+        `${BACKEND}/send-email-bulk`,
         { students: selecionados, subject: assunto, messageBody: corpoEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       const { message, falhas } = res.data;
       let aviso = `✅ ${message}`;
       if (falhas?.length > 0) {
-        aviso += `\n\n⚠️ Falhas (${falhas.length}):\n` + falhas.map((f) => `• ${f.nome}: ${f.motivo}`).join("\n");
+        aviso +=
+          `\n\n⚠️ Falhas (${falhas.length}):\n` +
+          falhas.map((f) => `• ${f.nome}: ${f.motivo}`).join("\n");
       }
       alert(aviso);
       setSelecionados([]);
       carregarDados();
     } catch (err) {
-      alert("Falha no disparo. " + (err.response?.data?.error || "Verifique o servidor."));
+      alert(
+        "Falha no disparo. " +
+          (err.response?.data?.error || "Verifique o servidor."),
+      );
     } finally {
       setLoading(false);
     }
@@ -268,7 +299,8 @@ function App() {
   const excluirContato = async (id) => {
     if (!window.confirm("Excluir este aluno definitivamente?")) return;
     const { error } = await supabase.from("alunos").delete().eq("id", id);
-    if (error) alert("Erro ao excluir."); else carregarDados();
+    if (error) alert("Erro ao excluir.");
+    else carregarDados();
   };
 
   const excluirEmMassa = async (lista, setLista) => {
@@ -276,7 +308,11 @@ function App() {
     if (!window.confirm(`Excluir ${lista.length} contato(s)?`)) return;
     const ids = lista.map((s) => s.id).filter(Boolean);
     const { error } = await supabase.from("alunos").delete().in("id", ids);
-    if (error) alert("Erro ao excluir."); else { setLista([]); carregarDados(); }
+    if (error) alert("Erro ao excluir.");
+    else {
+      setLista([]);
+      carregarDados();
+    }
   };
 
   // ── Edição inline ──────────────────────────────────────────────────────────
@@ -306,12 +342,17 @@ function App() {
       Status: a.status,
       Respondeu: a.respondeu ? "SIM" : "NÃO",
       "Última Resposta": a.ultima_resposta || "",
-      "Data Envio": a.data_envio ? new Date(a.data_envio).toLocaleString("pt-BR") : "",
+      "Data Envio": a.data_envio
+        ? new Date(a.data_envio).toLocaleString("pt-BR")
+        : "",
     }));
     const ws = XLSX.utils.json_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Relatório");
-    XLSX.writeFile(wb, `Relatorio_Alunos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `Relatorio_Alunos_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
   };
 
   // ── Templates de células ───────────────────────────────────────────────────
@@ -327,11 +368,18 @@ function App() {
   };
 
   const respondeuTemplate = (row) => (
-    <Tag value={row.respondeu ? "SIM" : "NÃO"} severity={row.respondeu ? "success" : "danger"} />
+    <Tag
+      value={row.respondeu ? "SIM" : "NÃO"}
+      severity={row.respondeu ? "success" : "danger"}
+    />
   );
 
   const textEditor = (options) => (
-    <InputText value={options.value} onChange={(e) => options.editorCallback(e.target.value)} style={{ width: "100%" }} />
+    <InputText
+      value={options.value}
+      onChange={(e) => options.editorCallback(e.target.value)}
+      style={{ width: "100%" }}
+    />
   );
 
   // ── Stats do dashboard ─────────────────────────────────────────────────────
@@ -339,8 +387,10 @@ function App() {
   const contatados = todosAlunos.filter((a) => a.status !== "pendente").length;
   const responderam = todosAlunos.filter((a) => a.respondeu).length;
   const pendentes = todosAlunos.filter((a) => a.status === "pendente").length;
-  const taxaEngajamento = total > 0 ? ((responderam / total) * 100).toFixed(1) : "0.0";
-  const taxaContato = total > 0 ? ((contatados / total) * 100).toFixed(1) : "0.0";
+  const taxaEngajamento =
+    total > 0 ? ((responderam / total) * 100).toFixed(1) : "0.0";
+  const taxaContato =
+    total > 0 ? ((contatados / total) * 100).toFixed(1) : "0.0";
 
   // ── Filtros das tabelas ────────────────────────────────────────────────────
   const alunosFiltradosGestao = todosAlunos.filter((a) => {
@@ -386,7 +436,6 @@ function App() {
       {/* ── Conteúdo ───────────────────────────────────────────────────────── */}
       <main className="main-content">
         <TabView activeIndex={activeIndex} onTabChange={onTabChange}>
-
           {/* ══ Aba 1: Disparo WhatsApp ══════════════════════════════════════ */}
           <TabPanel header="Disparo WhatsApp" leftIcon="pi pi-whatsapp mr-2">
             <div className="card mb-4">
@@ -430,7 +479,11 @@ function App() {
                 />
                 <div className="flex-gap mt-3">
                   <Button
-                    label={loading ? "Enviando..." : `Disparar Lote (${alunosFiltradosEnvio.length} pendentes)`}
+                    label={
+                      loading
+                        ? "Enviando..."
+                        : `Disparar Lote (${alunosFiltradosEnvio.length} pendentes)`
+                    }
                     icon="pi pi-send"
                     onClick={dispararLote}
                     disabled={loading || alunosFiltradosEnvio.length === 0}
@@ -447,7 +500,12 @@ function App() {
                       label="Excluir Selecionados"
                       icon="pi pi-trash"
                       className="p-button-danger p-button-outlined"
-                      onClick={() => excluirEmMassa(selecionadosPendentes, setSelecionadosPendentes)}
+                      onClick={() =>
+                        excluirEmMassa(
+                          selecionadosPendentes,
+                          setSelecionadosPendentes,
+                        )
+                      }
                     />
                   )}
                 </div>
@@ -464,7 +522,9 @@ function App() {
                   className="search-input"
                 />
               </span>
-              <span className="table-count">{alunosFiltradosEnvio.length} contato(s) pendente(s)</span>
+              <span className="table-count">
+                {alunosFiltradosEnvio.length} contato(s) pendente(s)
+              </span>
             </div>
 
             <DataTable
@@ -500,7 +560,9 @@ function App() {
                     label={`Excluir (${selecionados.length})`}
                     icon="pi pi-trash"
                     className="p-button-danger"
-                    onClick={() => excluirEmMassa(selecionados, setSelecionados)}
+                    onClick={() =>
+                      excluirEmMassa(selecionados, setSelecionados)
+                    }
                   />
                 )}
               </div>
@@ -560,13 +622,30 @@ function App() {
                   className="crm-table"
                   stripedRows
                 >
-                  <Column field="nome" header="Nome" editor={textEditor} sortable />
-                  <Column field="telefone" header="Telefone" editor={textEditor} />
+                  <Column
+                    field="nome"
+                    header="Nome"
+                    editor={textEditor}
+                    sortable
+                  />
+                  <Column
+                    field="telefone"
+                    header="Telefone"
+                    editor={textEditor}
+                  />
                   <Column field="curso" header="Curso" editor={textEditor} />
                   <Column field="email" header="E-mail" editor={textEditor} />
-                  <Column header="Status" body={statusTemplate} editor={textEditor} />
+                  <Column
+                    header="Status"
+                    body={statusTemplate}
+                    editor={textEditor}
+                  />
                   <Column header="Respondeu" body={respondeuTemplate} />
-                  <Column field="ultima_resposta" header="Feedback" editor={textEditor} />
+                  <Column
+                    field="ultima_resposta"
+                    header="Feedback"
+                    editor={textEditor}
+                  />
                   <Column rowEditor style={{ width: "6rem" }} />
                   <Column
                     body={(row) => (
@@ -597,7 +676,8 @@ function App() {
                 {/* Lista lateral de contatos que já foram contatados */}
                 <div className="whats-sidebar">
                   <div className="whats-sidebar-header">Contatos</div>
-                  {todosAlunos.filter((a) => a.status !== "pendente").length === 0 ? (
+                  {todosAlunos.filter((a) => a.status !== "pendente").length ===
+                  0 ? (
                     <div className="whats-empty">
                       <i className="pi pi-inbox" />
                       <p>Nenhum contato ainda</p>
@@ -608,7 +688,12 @@ function App() {
                       .map((aluno) => (
                         <div
                           key={aluno.id}
-                          className={"whats-contact " + (alunoChat?.id === aluno.id ? "whats-contact-ativo" : "")}
+                          className={
+                            "whats-contact " +
+                            (alunoChat?.id === aluno.id
+                              ? "whats-contact-ativo"
+                              : "")
+                          }
                           onClick={() => setAlunoChat(aluno)}
                         >
                           <div className="whats-avatar">
@@ -645,7 +730,8 @@ function App() {
                         <Tag
                           value={alunoChat.status}
                           severity={
-                            alunoChat.status === "concluido" || alunoChat.status === "enviado"
+                            alunoChat.status === "concluido" ||
+                            alunoChat.status === "enviado"
                               ? "success"
                               : "warning"
                           }
@@ -653,7 +739,8 @@ function App() {
                       </div>
 
                       <div className="whats-messages">
-                        {(!alunoChat.historico || alunoChat.historico.length === 0) ? (
+                        {!alunoChat.historico ||
+                        alunoChat.historico.length === 0 ? (
                           <div className="whats-msg-vazio">
                             Nenhuma mensagem ainda nesta conversa.
                           </div>
@@ -661,14 +748,22 @@ function App() {
                           alunoChat.historico.map((msg, i) => (
                             <div
                               key={i}
-                              className={"whats-bubble " + (msg.tipo === "saida" ? "whats-bubble-saida" : "whats-bubble-entrada")}
+                              className={
+                                "whats-bubble " +
+                                (msg.tipo === "saida"
+                                  ? "whats-bubble-saida"
+                                  : "whats-bubble-entrada")
+                              }
                             >
                               <span>{msg.texto}</span>
                               <time>
-                                {new Date(msg.data).toLocaleTimeString("pt-BR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                                {new Date(msg.data).toLocaleTimeString(
+                                  "pt-BR",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
                               </time>
                             </div>
                           ))
@@ -682,7 +777,9 @@ function App() {
                           placeholder="Responder via WhatsApp..."
                           value={msgWhats}
                           onChange={(e) => setMsgWhats(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && enviarMensagemWhats()}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && enviarMensagemWhats()
+                          }
                         />
                         <button
                           onClick={enviarMensagemWhats}
@@ -774,7 +871,9 @@ function App() {
               <div className="card-header">
                 <div>
                   <h3>2. Configurar E-mail</h3>
-                  <p>Use {"{nome}"} e {"{curso}"} como variáveis personalizadas</p>
+                  <p>
+                    Use {"{nome}"} e {"{curso}"} como variáveis personalizadas
+                  </p>
                 </div>
               </div>
               <div className="card-body">
@@ -816,28 +915,36 @@ function App() {
           <TabPanel header="Dashboard" leftIcon="pi pi-chart-bar mr-2">
             <div className="stats-grid">
               <div className="stat-card stat-blue">
-                <div className="stat-icon"><i className="pi pi-users" /></div>
+                <div className="stat-icon">
+                  <i className="pi pi-users" />
+                </div>
                 <div className="stat-body">
                   <span>Total de Alunos</span>
                   <strong>{total}</strong>
                 </div>
               </div>
               <div className="stat-card stat-orange">
-                <div className="stat-icon"><i className="pi pi-clock" /></div>
+                <div className="stat-icon">
+                  <i className="pi pi-clock" />
+                </div>
                 <div className="stat-body">
                   <span>Pendentes</span>
                   <strong>{pendentes}</strong>
                 </div>
               </div>
               <div className="stat-card stat-green">
-                <div className="stat-icon"><i className="pi pi-send" /></div>
+                <div className="stat-icon">
+                  <i className="pi pi-send" />
+                </div>
                 <div className="stat-body">
                   <span>Contatados</span>
                   <strong>{contatados}</strong>
                 </div>
               </div>
               <div className="stat-card stat-purple">
-                <div className="stat-icon"><i className="pi pi-comments" /></div>
+                <div className="stat-icon">
+                  <i className="pi pi-comments" />
+                </div>
                 <div className="stat-body">
                   <span>Responderam</span>
                   <strong>{responderam}</strong>
@@ -847,32 +954,46 @@ function App() {
 
             <div className="dashboard-row">
               <div className="card flex-1">
-                <div className="card-header"><h3>Taxa de Contato</h3></div>
+                <div className="card-header">
+                  <h3>Taxa de Contato</h3>
+                </div>
                 <div className="card-body dashboard-metric">
                   <div className="metric-value" style={{ color: "#1A6BBF" }}>
                     {taxaContato}%
                   </div>
-                  <p>{contatados} de {total} alunos foram contatados</p>
+                  <p>
+                    {contatados} de {total} alunos foram contatados
+                  </p>
                   <div className="progress-bar">
                     <div
                       className="progress-fill"
-                      style={{ width: `${taxaContato}%`, background: "#1A6BBF" }}
+                      style={{
+                        width: `${taxaContato}%`,
+                        background: "#1A6BBF",
+                      }}
                     />
                   </div>
                 </div>
               </div>
 
               <div className="card flex-1">
-                <div className="card-header"><h3>Taxa de Engajamento</h3></div>
+                <div className="card-header">
+                  <h3>Taxa de Engajamento</h3>
+                </div>
                 <div className="card-body dashboard-metric">
                   <div className="metric-value" style={{ color: "#16A34A" }}>
                     {taxaEngajamento}%
                   </div>
-                  <p>{responderam} de {total} alunos responderam</p>
+                  <p>
+                    {responderam} de {total} alunos responderam
+                  </p>
                   <div className="progress-bar">
                     <div
                       className="progress-fill"
-                      style={{ width: `${taxaEngajamento}%`, background: "#16A34A" }}
+                      style={{
+                        width: `${taxaEngajamento}%`,
+                        background: "#16A34A",
+                      }}
                     />
                   </div>
                 </div>
@@ -881,26 +1002,41 @@ function App() {
 
             {/* Distribuição por status */}
             <div className="card mt-4">
-              <div className="card-header"><h3>Distribuição por Status</h3></div>
+              <div className="card-header">
+                <h3>Distribuição por Status</h3>
+              </div>
               <div className="card-body status-dist">
                 {[
                   { label: "Pendente", key: "pendente", color: "#D97706" },
                   { label: "Enviado", key: "enviado", color: "#2563EB" },
-                  { label: "E-mail enviado", key: "email_enviado", color: "#7C3AED" },
+                  {
+                    label: "E-mail enviado",
+                    key: "email_enviado",
+                    color: "#7C3AED",
+                  },
                   { label: "Concluído", key: "concluido", color: "#16A34A" },
                   { label: "Erro", key: "erro", color: "#DC2626" },
                 ].map(({ label, key, color }) => {
-                  const count = todosAlunos.filter((a) => a.status === key).length;
-                  const pct = total > 0 ? ((count / total) * 100).toFixed(0) : 0;
+                  const count = todosAlunos.filter(
+                    (a) => a.status === key,
+                  ).length;
+                  const pct =
+                    total > 0 ? ((count / total) * 100).toFixed(0) : 0;
                   return (
                     <div key={key} className="dist-item">
                       <div className="dist-label">
-                        <span style={{ background: color }} className="dist-dot" />
+                        <span
+                          style={{ background: color }}
+                          className="dist-dot"
+                        />
                         {label}
                       </div>
                       <div className="dist-bar-wrap">
                         <div className="dist-bar">
-                          <div className="dist-bar-fill" style={{ width: `${pct}%`, background: color }} />
+                          <div
+                            className="dist-bar-fill"
+                            style={{ width: `${pct}%`, background: color }}
+                          />
                         </div>
                         <span className="dist-count">{count}</span>
                       </div>
@@ -910,7 +1046,6 @@ function App() {
               </div>
             </div>
           </TabPanel>
-
         </TabView>
       </main>
     </div>

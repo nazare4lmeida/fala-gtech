@@ -9,25 +9,28 @@ export default function Login({ onLogin }) {
   const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const handleLogin = async (e) => {
-    e?.preventDefault();
-    if (!email || !senha) {
-      setErro("Preencha e-mail e senha.");
-      return;
-    }
-    setErro("");
-    setCarregando(true);
-    try {
-      const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/login`, { email, senha });
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("nomeUsuario", res.data.nome);
-      onLogin(res.data.token);
-    } catch (err) {
-      setErro(err.response?.data?.error || "Falha na conexão com o servidor.");
-    } finally {
-      setCarregando(false);
-    }
-  };
+  e?.preventDefault();
+  if (!email || !senha) {
+    setErro("Preencha e-mail e senha.");
+    return;
+  }
+  setErro("");
+  setCarregando(true);
 
+  // ← adiciona só essa linha
+  const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
+
+  try {
+    const res = await axios.post(`${BACKEND}/login`, { email, senha });
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("nomeUsuario", res.data.nome);
+    onLogin(res.data.token);
+  } catch (err) {
+    setErro(err.response?.data?.error || "Falha na conexão com o servidor.");
+  } finally {
+    setCarregando(false);
+  }
+};
   return (
     <div className="login-page">
       <div className="login-box">

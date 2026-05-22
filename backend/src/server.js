@@ -389,6 +389,82 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
   })();
 });
 
+// ─── BOT DE ATENDIMENTO (Gemini) ──────────────────────────────────────────────
+const BOT_CONFIG = require("./bot-config");
+
+app.post("/chat-bot", async (req, res) => {
+  const { mensagem, historico } = req.body;
+
+  if (!mensagem) return res.status(400).json({ error: "Mensagem vazia." });
+
+  // Verifica se quer falar com humano
+  const msgNorm = mensagem.toLowerCase().trim();
+  const querHumano = BOT_CONFIG.palavrasEscalar.some((p) =>
+    msgNorm.includes(p.toLowerCase())
+  );
+
+  if (querHumano) {
+    return res.json({ resposta: BOT_CONFIG.msgEscalar, escalar: true });
+  }
+
+  try {
+    const contents = [];
+
+    if (historico && historico.length > 0) {
+      historico.forEach((m) => {
+        contents.push({
+          role: m.remetente === "aluno" ? "user" : "model",
+          parts: [{ text: m.conteudo }],
+        });
+      });
+    }
+
+    contents.push({ role: "user", parts: [{ text: mensagem }] });
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: BOT_CONFIG.contexto }],
+          },
+          contents,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500,
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Erro Gemini:", data);
+      throw new Error(data.error?.message || "Erro na API do Gemini");
+    }
+
+    const resposta =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      'Desculpe, não consegui processar sua pergunta. Digite *"falar com humano"* para falar com nossa equipe.';
+
+    const botNaoSabe =
+      resposta.toLowerCase().includes("encaminhar para a equipe") ||
+      resposta.toLowerCase().includes("não tenho essa informação");
+
+    res.json({ resposta, escalar: botNaoSabe });
+  } catch (err) {
+    console.error("Erro no bot:", err.message);
+    res.json({
+      resposta:
+        'Desculpe, estou com dificuldades técnicas. Digite *"falar com humano"* para falar com nossa equipe.',
+      escalar: false,
+    });
+  }
+});
+
 // ─── Iniciar servidor ─────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 Servidor Geração Tech 3.0 rodando na porta ${PORT}`);
