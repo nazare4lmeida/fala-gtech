@@ -3,49 +3,102 @@ import { supabase } from "./supabaseClient";
 
 const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
 
-// ── Respostas instantâneas por tópico (sem chamar a API) ──────────────────────
+// ── Tópicos com palavras-chave para match preciso ─────────────────────────────
 const TOPICOS = [
   {
     id: "quem-pode",
     label: "Quem pode participar?",
-    resposta: `*Quem pode participar do Geração Tech:*\n\n• Cearenses com idade mínima de 16 anos\n• *Full Stack:* não ter participado de edições anteriores\n• *IA Generativa:* ter noções de programação e dados\n• *IA e Soft Skills:* ter concluído o Geração Tech ou outro curso de programação (com comprovação)`,
+    palavrasChave: ["quem pode", "participar", "requisito", "elegivel", "elegível", "idade", "cearense"],
+    resposta: `*Quem pode participar do Geração Tech:*\n\n• Cearenses com idade mínima de 16 anos\n\n• *Full Stack:* não ter participado de edições anteriores do Geração Tech\n• *IA Generativa:* ter noções de programação e dados\n• *IA e Soft Skills:* ter concluído o Geração Tech ou outro curso de programação (com comprovação)`,
   },
   {
     id: "formacoes",
     label: "Quais formações estão disponíveis?",
-    resposta: `*Formações disponíveis (todas gratuitas):*\n\n📌 *Desenvolvedor Full Stack* — 500 vagas online\n📌 *IA Generativa* — 200 presenciais + 400 online\n📌 *IA e Soft Skills para Programadores* — 100 presenciais + 500 online\n\nTodas com duração de aproximadamente 3 meses.`,
+    palavrasChave: ["formação", "formações", "curso", "cursos", "trilha", "disponível", "disponíveis", "opcoes", "opções"],
+    resposta: `*Formações disponíveis — todas gratuitas:*\n\n📌 *Desenvolvedor Full Stack* — 500 vagas online\n📌 *IA Generativa* — 200 presenciais + 400 online\n📌 *IA e Soft Skills para Programadores* — 100 presenciais + 500 online\n\nTodas com duração de aproximadamente 3 meses.`,
   },
   {
     id: "horarios",
     label: "Como funcionam os horários?",
-    resposta: `*Horários das aulas:*\n\n🖥️ *Online:* aulas gravadas + 1 aula ao vivo por semana (4h)\n🏫 *Presencial:* 2 encontros por semana (4h cada) — seg/qua ou ter/qui, manhã ou tarde`,
+    palavrasChave: ["horario", "horário", "horarios", "horários", "aula", "aulas", "dias", "turno", "manhã", "tarde", "semana"],
+    resposta: `*Horários das aulas:*\n\n🖥️ *Online:* aulas gravadas + 1 aula ao vivo por semana (4h)\n🏫 *Presencial:* 2 encontros por semana, 4h cada — seg/qua ou ter/qui, manhã ou tarde`,
   },
   {
     id: "selecao",
     label: "Como é o processo seletivo?",
+    palavrasChave: ["seletivo", "seleção", "selecao", "inscricao", "inscrição", "teste", "testes", "processo", "como participar", "como se inscrever"],
     resposta: `*Processo seletivo:*\n\n1️⃣ Inscrição no site\n2️⃣ Envio de documentos\n3️⃣ Testes: Raciocínio Lógico, Comportamental e Específico da formação\n\n✅ Todo o processo é *100% gratuito* — sem nenhuma taxa.`,
+  },
+  {
+    id: "gratuito",
+    label: "É gratuito?",
+    palavrasChave: ["gratuito", "gratis", "grátis", "pagar", "pago", "taxa", "custo", "valor", "quanto custa"],
+    resposta: `✅ Sim! O Geração Tech é *100% gratuito*.\n\nTanto o processo seletivo quanto as formações não têm nenhum custo para o aluno.`,
   },
   {
     id: "ex-alunos",
     label: "Ex-alunos podem participar?",
+    palavrasChave: ["ex-aluno", "ex aluno", "participei antes", "edição anterior", "edicao anterior", "ja fiz", "já fiz", "participei"],
     resposta: `*Ex-alunos do Geração Tech:*\n\n✅ Podem se inscrever novamente\n✅ Foco especial em ex-alunos para *IA e Soft Skills*\n❌ *Full Stack:* ex-alunos NÃO podem participar`,
   },
   {
     id: "documentos",
     label: "Documentos necessários",
-    resposta: `*Documentos para inscrição:*\n\nSe não tiver comprovante de endereço em seu nome, você pode usar a *autodeclaração de residência* (modelo no Anexo II do Edital).\n\nDúvidas sobre documentação? Digite sua pergunta ou clique em *Falar com a equipe*.`,
+    palavrasChave: ["documento", "documentos", "comprovante", "endereco", "endereço", "autodeclaracao", "autodeclaração", "rg", "cpf"],
+    resposta: `*Documentos para inscrição:*\n\nSe não tiver comprovante de endereço em seu nome, você pode usar a *autodeclaração de residência* (modelo no Anexo II do Edital).\n\nDúvidas sobre documentação? Clique em *Falar com a equipe*.`,
   },
   {
-    id: "eventos",
-    label: "Formatura e Recruiting Day",
-    resposta: `*Eventos finais do programa:*\n\n🎓 *Formatura* — previsão para 06/05/2026\n💼 *Recruiting Day* — previsão para 27/05/2026\n\nNo Recruiting Day, empresas parceiras estarão presentes em busca de talentos!`,
+    id: "recruiting",
+    label: "O que é o Recruiting Day?",
+    palavrasChave: ["recruiting", "recruiting day", "feira", "emprego", "empregabilidade", "empresa", "vaga", "vagas", "contratacao", "contratação", "evento"],
+    resposta: `*Recruiting Day Geração Tech 3.0* 🚀\n\n📅 *Data:* 27 de maio de 2026\n📍 *Local:* FIEC — Fortaleza/CE\n✅ *Participação gratuita*\n\nA feira oficial de empregabilidade do programa — onde empresas encontram os novos talentos da tecnologia.\n\n*O que acontece no evento:*\n• Empresas com vagas abertas\n• +3.000 profissionais formados\n• +30 empresas expositoras\n• +150 vagas ofertadas\n• Ciclo de palestras com especialistas\n• Desafio IEL — premiação dos 5 melhores talentos\n• Networking estratégico\n\n🔗 Saiba mais: geracaotech.iel-ce.org.br/recruitingday`,
+  },
+  {
+    id: "formatura",
+    label: "Formatura e eventos finais",
+    palavrasChave: ["formatura", "certificado", "certificação", "conclusao", "conclusão", "evento final", "encerramento"],
+    resposta: `*Eventos finais do programa:*\n\n🎓 *Formatura* — previsão para 06/05/2026\n💼 *Recruiting Day* — 27/05/2026 na FIEC, Fortaleza\n\nNo Recruiting Day, +30 empresas parceiras estarão presentes com vagas reais para os formandos!`,
   },
   {
     id: "contato",
     label: "Como entrar em contato?",
-    resposta: `*Contato com a equipe:*\n\n📧 contato@geracaotech.iel-ce.org.br\n🕐 Segunda a sexta, das 9h às 17h\n📋 Prazo de resposta: até 48 horas úteis\n\nOu clique em *Falar com a equipe* para atendimento pelo chat.`,
+    palavrasChave: ["contato", "email", "e-mail", "duvida", "dúvida", "falar", "atendimento", "ajuda", "suporte"],
+    resposta: `*Contato com a equipe:*\n\n📧 contato@geracaotech.iel-ce.org.br\n🕐 Segunda a sexta, das 9h às 17h\n📋 Prazo de resposta: até 48 horas úteis\n\nOu clique em *Falar com a equipe* para atendimento pelo chat agora.`,
   },
 ];
+
+// ── Normaliza texto para comparação ──────────────────────────────────────────
+function normTexto(str) {
+  if (!str) return "";
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+// ── Encontra tópico pela mensagem digitada ────────────────────────────────────
+function encontrarTopico(mensagem) {
+  const msgNorm = normTexto(mensagem);
+  let melhorMatch = null;
+  let melhorScore = 0;
+
+  for (const topico of TOPICOS) {
+    for (const palavra of topico.palavrasChave) {
+      const palavraNorm = normTexto(palavra);
+      // Match exato da frase-chave
+      if (msgNorm.includes(palavraNorm)) {
+        const score = palavraNorm.length; // frases mais longas = score maior
+        if (score > melhorScore) {
+          melhorScore = score;
+          melhorMatch = topico;
+        }
+      }
+    }
+  }
+
+  return melhorMatch;
+}
 
 export default function SuporteAluno() {
   const [dados, setDados] = useState({ nome: "", telefone: "" });
@@ -62,25 +115,21 @@ export default function SuporteAluno() {
     if (!sessao) return;
 
     adicionarMsgSistema(
-      `Olá, *${sessao.aluno_nome}*! 👋 Bem-vindo ao atendimento do *Geração Tech*.\n\nSelecione um assunto abaixo ou digite sua dúvida:`,
+      `Olá, *${sessao.aluno_nome}*! 👋 Bem-vindo ao atendimento do *Geração Tech*.\n\nSelecione um assunto abaixo ou digite sua dúvida:`
     );
 
     const channel = supabase
       .channel(`chat_aluno:${sessao.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_mensagens",
-          filter: `sessao_id=eq.${sessao.id}`,
-        },
-        (payload) => {
-          if (payload.new.remetente === "admin") {
-            setConversa((prev) => [...prev, payload.new]);
-          }
-        },
-      )
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "chat_mensagens",
+        filter: `sessao_id=eq.${sessao.id}`,
+      }, (payload) => {
+        if (payload.new.remetente === "admin") {
+          setConversa((prev) => [...prev, payload.new]);
+        }
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -94,7 +143,7 @@ export default function SuporteAluno() {
     setConversa((prev) => [
       ...prev,
       {
-        id: `sistema-${Date.now()}`,
+        id: `sistema-${Date.now()}-${Math.random()}`,
         remetente: "sistema",
         conteudo: texto,
         created_at: new Date().toISOString(),
@@ -111,13 +160,7 @@ export default function SuporteAluno() {
     setEnviando(true);
     const { data, error } = await supabase
       .from("chat_sessoes")
-      .insert([
-        {
-          aluno_nome: dados.nome.trim(),
-          aluno_telefone: dados.telefone.trim(),
-          status: "bot",
-        },
-      ])
+      .insert([{ aluno_nome: dados.nome.trim(), aluno_telefone: dados.telefone.trim(), status: "bot" }])
       .select()
       .single();
     setEnviando(false);
@@ -129,22 +172,12 @@ export default function SuporteAluno() {
     setEscalado(true);
     setMostrarMenu(false);
     adicionarMsgSistema(msgTexto);
-    await supabase
-      .from("chat_sessoes")
-      .update({ status: "aberto" })
-      .eq("id", sessao.id);
-    await supabase.from("chat_mensagens").insert({
-      sessao_id: sessao.id,
-      remetente: "sistema",
-      conteudo: msgTexto,
-    });
+    await supabase.from("chat_sessoes").update({ status: "aberto" }).eq("id", sessao.id);
+    await supabase.from("chat_mensagens").insert({ sessao_id: sessao.id, remetente: "sistema", conteudo: msgTexto });
   };
 
-  // ── Clique em tópico do menu ──────────────────────────────────────────────
   const selecionarTopico = async (topico) => {
     setMostrarMenu(false);
-
-    // Mensagem do aluno
     const msgAluno = {
       id: `aluno-${Date.now()}`,
       remetente: "aluno",
@@ -152,22 +185,13 @@ export default function SuporteAluno() {
       created_at: new Date().toISOString(),
     };
     setConversa((prev) => [...prev, msgAluno]);
-
-    await supabase.from("chat_mensagens").insert({
-      sessao_id: sessao.id,
-      remetente: "aluno",
-      conteudo: topico.label,
-    });
-
-    // Resposta instantânea
+    await supabase.from("chat_mensagens").insert({ sessao_id: sessao.id, remetente: "aluno", conteudo: topico.label });
     setTimeout(() => {
       adicionarMsgSistema(topico.resposta);
-      // Mostra o menu novamente após responder
-      setTimeout(() => setMostrarMenu(true), 400);
-    }, 400);
+      setTimeout(() => setMostrarMenu(true), 300);
+    }, 350);
   };
 
-  // ── Envio de mensagem digitada ────────────────────────────────────────────
   const enviarMensagem = async () => {
     if (!msg.trim() || !sessao || enviando) return;
     const texto = msg.trim();
@@ -177,68 +201,39 @@ export default function SuporteAluno() {
 
     setConversa((prev) => [
       ...prev,
-      {
-        id: `aluno-${Date.now()}`,
-        remetente: "aluno",
-        conteudo: texto,
-        created_at: new Date().toISOString(),
-      },
+      { id: `aluno-${Date.now()}`, remetente: "aluno", conteudo: texto, created_at: new Date().toISOString() },
     ]);
 
-    await supabase.from("chat_mensagens").insert({
-      sessao_id: sessao.id,
-      remetente: "aluno",
-      conteudo: texto,
-    });
+    await supabase.from("chat_mensagens").insert({ sessao_id: sessao.id, remetente: "aluno", conteudo: texto });
 
-    if (escalado) {
+    if (escalado) { setEnviando(false); return; }
+
+    // Verifica escalada para humano
+    const palavrasHumano = ["falar com humano", "falar com a equipe", "falar com equipe", "atendente", "humano", "pessoa real", "quero falar com alguem", "quero falar com alguém"];
+    const msgNorm = normTexto(texto);
+    if (palavrasHumano.some((p) => msgNorm.includes(normTexto(p)))) {
+      await escalarParaHumano("Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.");
       setEnviando(false);
       return;
     }
 
-    // Verifica palavras-chave para escalada imediata
-    const palavrasHumano = [
-      "falar com humano",
-      "falar com a equipe",
-      "atendente",
-      "humano",
-      "pessoa real",
-    ];
-    if (palavrasHumano.some((p) => texto.toLowerCase().includes(p))) {
-      await escalarParaHumano(
-        "Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.",
-      );
-      setEnviando(false);
-      return;
-    }
-
-    // Verifica palavras-chave para resposta direta sem API
-    const topicoEncontrado = TOPICOS.find((t) => {
-      const palavras = t.label
-        .toLowerCase()
-        .split(" ")
-        .filter((p) => p.length > 3);
-      return palavras.some((p) => texto.toLowerCase().includes(p));
-    });
-
+    // Busca tópico por palavras-chave (preciso)
+    const topicoEncontrado = encontrarTopico(texto);
     if (topicoEncontrado) {
       setTimeout(() => {
         adicionarMsgSistema(topicoEncontrado.resposta);
-        setTimeout(() => setMostrarMenu(true), 400);
-      }, 400);
+        setTimeout(() => setMostrarMenu(true), 300);
+      }, 350);
       setEnviando(false);
       return;
     }
 
-    // Pergunta fora do menu → chama o Gemini
+    // Pergunta fora do menu → Gemini
     try {
       const historicoParaBot = conversa
         .filter((m) => m.remetente === "aluno" || m.remetente === "sistema")
         .slice(-8)
-        .map((m) => ({
-          remetente: m.remetente === "sistema" ? "admin" : "aluno",
-          conteudo: m.conteudo,
-        }));
+        .map((m) => ({ remetente: m.remetente === "sistema" ? "admin" : "aluno", conteudo: m.conteudo }));
 
       const res = await fetch(`${BACKEND}/chat-bot`, {
         method: "POST",
@@ -252,12 +247,10 @@ export default function SuporteAluno() {
         await escalarParaHumano(data.resposta);
       } else {
         adicionarMsgSistema(data.resposta);
-        setTimeout(() => setMostrarMenu(true), 400);
+        setTimeout(() => setMostrarMenu(true), 300);
       }
     } catch {
-      adicionarMsgSistema(
-        'Não consegui processar sua pergunta. Digite *"falar com a equipe"* ou selecione um assunto abaixo.',
-      );
+      adicionarMsgSistema('Não consegui processar sua pergunta agora. Selecione um assunto abaixo ou clique em *Falar com a equipe*.');
       setMostrarMenu(true);
     } finally {
       setEnviando(false);
@@ -265,18 +258,14 @@ export default function SuporteAluno() {
   };
 
   const formatarTexto = (texto) => {
-    return texto.split("\n").map((linha, li) => (
+    return texto.split("\n").map((linha, li, arr) => (
       <span key={li}>
-        {linha
-          .split(/(\*[^*]+\*)/g)
-          .map((parte, pi) =>
-            parte.startsWith("*") && parte.endsWith("*") ? (
-              <strong key={pi}>{parte.slice(1, -1)}</strong>
-            ) : (
-              <span key={pi}>{parte}</span>
-            ),
-          )}
-        {li < texto.split("\n").length - 1 && <br />}
+        {linha.split(/(\*[^*]+\*)/g).map((parte, pi) =>
+          parte.startsWith("*") && parte.endsWith("*")
+            ? <strong key={pi}>{parte.slice(1, -1)}</strong>
+            : <span key={pi}>{parte}</span>
+        )}
+        {li < arr.length - 1 && <br />}
       </span>
     ));
   };
@@ -291,47 +280,25 @@ export default function SuporteAluno() {
             <h2>Central de Atendimento</h2>
             <p>Geração Tech — Tire suas dúvidas aqui</p>
           </div>
-
           <div className="suporte-form">
             {erro && <div className="suporte-erro">{erro}</div>}
-
             <div className="suporte-field">
               <label>Seu nome completo</label>
-              <input
-                type="text"
-                placeholder="Ex: Maria Silva"
-                value={dados.nome}
+              <input type="text" placeholder="Ex: Maria Silva" value={dados.nome}
                 onChange={(e) => setDados({ ...dados, nome: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && iniciarChat()}
-                autoFocus
-              />
+                onKeyDown={(e) => e.key === "Enter" && iniciarChat()} autoFocus />
             </div>
-
             <div className="suporte-field">
               <label>Seu telefone (WhatsApp)</label>
-              <input
-                type="tel"
-                placeholder="Ex: 85 9 9999-9999"
-                value={dados.telefone}
-                onChange={(e) =>
-                  setDados({ ...dados, telefone: e.target.value })
-                }
-                onKeyDown={(e) => e.key === "Enter" && iniciarChat()}
-              />
+              <input type="tel" placeholder="Ex: 85 9 9999-9999" value={dados.telefone}
+                onChange={(e) => setDados({ ...dados, telefone: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && iniciarChat()} />
             </div>
-
-            <button
-              className="suporte-btn"
-              onClick={iniciarChat}
-              disabled={enviando}
-            >
+            <button className="suporte-btn" onClick={iniciarChat} disabled={enviando}>
               {enviando ? "Conectando..." : "Iniciar Atendimento"}
             </button>
           </div>
-
-          <p className="suporte-aviso">
-            ⚡ Atendimento imediato · 👤 Equipe disponível seg-sex 9h-17h
-          </p>
+          <p className="suporte-aviso">⚡ Atendimento imediato · 👤 Equipe disponível seg-sex 9h-17h</p>
         </div>
       </div>
     );
@@ -343,20 +310,13 @@ export default function SuporteAluno() {
       <div className="suporte-chat-header">
         <div className="suporte-chat-avatar">{escalado ? "👤" : "GT"}</div>
         <div>
-          <strong>
-            {escalado ? "Equipe Geração Tech" : "Atendimento Geração Tech"}
-          </strong>
+          <strong>{escalado ? "Equipe Geração Tech" : "Atendimento Geração Tech"}</strong>
           <span>{escalado ? "🟡 Aguardando atendente" : "🟢 Online"}</span>
         </div>
         {!escalado && (
-          <button
-            className="suporte-btn-humano"
-            onClick={() =>
-              escalarParaHumano(
-                "Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.",
-              )
-            }
-          >
+          <button className="suporte-btn-humano" onClick={() =>
+            escalarParaHumano("Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.")
+          }>
             👤 Falar com a equipe
           </button>
         )}
@@ -364,51 +324,28 @@ export default function SuporteAluno() {
 
       <div className="suporte-chat-messages">
         {conversa.map((m, i) => (
-          <div
-            key={m.id || i}
-            className={`suporte-bubble ${
-              m.remetente === "aluno"
-                ? "suporte-bubble-aluno"
-                : m.remetente === "admin"
-                  ? "suporte-bubble-admin"
-                  : "suporte-bubble-bot"
-            }`}
-          >
-            {m.remetente === "admin" && (
-              <span className="suporte-bubble-label">👤 Equipe GT</span>
-            )}
+          <div key={m.id || i} className={`suporte-bubble ${
+            m.remetente === "aluno" ? "suporte-bubble-aluno"
+            : m.remetente === "admin" ? "suporte-bubble-admin"
+            : "suporte-bubble-bot"
+          }`}>
+            {m.remetente === "admin" && <span className="suporte-bubble-label">👤 Equipe GT</span>}
             <span>{formatarTexto(m.conteudo)}</span>
-            <time>
-              {new Date(m.created_at).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </time>
+            <time>{new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</time>
           </div>
         ))}
 
-        {/* Menu de tópicos */}
         {mostrarMenu && !escalado && (
           <div className="suporte-menu-topicos">
             <p>Selecione um assunto:</p>
             <div className="suporte-topicos-grid">
               {TOPICOS.map((t) => (
-                <button
-                  key={t.id}
-                  className="suporte-topico-btn"
-                  onClick={() => selecionarTopico(t)}
-                >
+                <button key={t.id} className="suporte-topico-btn" onClick={() => selecionarTopico(t)}>
                   {t.label}
                 </button>
               ))}
-              <button
-                className="suporte-topico-btn suporte-topico-humano"
-                onClick={() =>
-                  escalarParaHumano(
-                    "Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.",
-                  )
-                }
-              >
+              <button className="suporte-topico-btn suporte-topico-humano"
+                onClick={() => escalarParaHumano("Conectando você com nossa equipe... ⏳\n\nAtendimento disponível de *segunda a sexta, das 9h às 17h*.")}>
                 👤 Falar com a equipe
               </button>
             </div>
@@ -417,27 +354,18 @@ export default function SuporteAluno() {
 
         {enviando && (
           <div className="suporte-bubble suporte-bubble-bot suporte-digitando">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
+            <span className="dot" /><span className="dot" /><span className="dot" />
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
       <div className="suporte-chat-input">
-        <input
-          type="text"
-          placeholder={
-            escalado
-              ? "Digite sua mensagem para a equipe..."
-              : "Digite sua dúvida ou selecione um assunto acima..."
-          }
+        <input type="text"
+          placeholder={escalado ? "Digite sua mensagem para a equipe..." : "Digite sua dúvida ou selecione um assunto acima..."}
           value={msg}
           onChange={(e) => setMsg(e.target.value)}
-          onKeyDown={(e) =>
-            e.key === "Enter" && !e.shiftKey && enviarMensagem()
-          }
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && enviarMensagem()}
           disabled={enviando}
         />
         <button onClick={enviarMensagem} disabled={enviando || !msg.trim()}>
