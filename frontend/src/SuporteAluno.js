@@ -275,23 +275,31 @@ export default function SuporteAluno() {
   const escalarParaHumano = async (msgTexto) => {
     setEscalado(true);
     setMostrarMenu(false);
+
+    // Monta a URL do WhatsApp ANTES de qualquer await
+    // (deve ser síncrono para o navegador não bloquear o popup)
+    const texto = encodeURIComponent(
+      `Olá! Sou ${dados.nome || sessao?.aluno_nome} e preciso de suporte sobre o Geração Tech. 😊`,
+    );
+    const urlWhats = `https://wa.me/${NUMERO_WHATSAPP}?text=${texto}`;
+
+    // Abre o WhatsApp imediatamente (síncrono, sem setTimeout)
+    window.open(urlWhats, "_blank");
+
+    // Depois faz as operações assíncronas
     adicionarMsgSistema(msgTexto);
-    await supabase
-      .from("chat_sessoes")
-      .update({ status: "aberto" })
-      .eq("id", sessao.id);
-    await supabase.from("chat_mensagens").insert({
-      sessao_id: sessao.id,
-      remetente: "sistema",
-      conteudo: msgTexto,
-    });
-    // Redireciona para WhatsApp após 1.5s
-    setTimeout(() => {
-      const texto = encodeURIComponent(
-        `Olá! Sou ${sessao.aluno_nome} e preciso de suporte sobre o Geração Tech. 😊`,
-      );
-      window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${texto}`, "_blank");
-    }, 1500);
+
+    if (sessao) {
+      await supabase
+        .from("chat_sessoes")
+        .update({ status: "aberto" })
+        .eq("id", sessao.id);
+      await supabase.from("chat_mensagens").insert({
+        sessao_id: sessao.id,
+        remetente: "sistema",
+        conteudo: msgTexto,
+      });
+    }
   };
 
   const selecionarTopico = async (topico) => {
