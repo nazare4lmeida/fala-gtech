@@ -1377,6 +1377,7 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
 }
 
 /* ════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    MODAL ADICIONAR ALUNO
    ════════════════════════════════════════════════════════ */
 .modal-overlay {
@@ -1467,40 +1468,58 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
 }
 
 /* ════════════════════════════════════════════════════════
-   CHAT WHATSAPP — EMOJI, ÁUDIO E MÍDIAS
+   CHAT WHATSAPP — INPUT, EMOJI, ÁUDIO E MÍDIAS
    ════════════════════════════════════════════════════════ */
 
-/* Input area melhorada */
+/* Override da input-area original para acomodar novos botões */
 .whats-input-area {
-  padding: 10px 14px;
-  background: #F0F0F0;
-  border-top: 1px solid #ddd;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  padding: 10px 14px !important;
+  gap: 6px !important;
+  align-items: center !important;
 }
 
 .whats-input-area input {
-  flex: 1;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 16px;
-  font-size: 0.875rem;
-  font-family: inherit;
-  outline: none;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  min-width: 0;
+  min-width: 0 !important;
+}
+
+/* Altura e redimensionamento do layout */
+.whats-chat-layout {
+  height: 620px !important;
+  resize: vertical;
+  min-height: 420px;
+}
+
+/* Garante quebra de linha e emojis */
+.whats-bubble span {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+}
+
+/* Bolhas maiores e com mais respiro */
+.whats-bubble {
+  max-width: 76% !important;
+  padding: 8px 14px 5px !important;
+  border-radius: 10px !important;
+}
+
+.whats-bubble-saida {
+  border-bottom-right-radius: 3px !important;
+  border-top-right-radius: 10px !important;
+}
+
+.whats-bubble-entrada {
+  border-bottom-left-radius: 3px !important;
+  border-top-left-radius: 10px !important;
 }
 
 /* Botões de ícone (emoji, mic) */
 .whats-btn-icon {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1508,9 +1527,10 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
   transition: background 0.15s;
   flex-shrink: 0;
   user-select: none;
+  padding: 0;
 }
 
-.whats-btn-icon:hover { background: rgba(0,0,0,0.06); }
+.whats-btn-icon:hover { background: rgba(0,0,0,0.07); }
 
 .whats-btn-gravando {
   background: #FEE2E2 !important;
@@ -1519,10 +1539,10 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
 
 @keyframes pulseRed {
   0%, 100% { background: #FEE2E2; transform: scale(1); }
-  50% { background: #FECACA; transform: scale(1.1); }
+  50% { background: #FECACA; transform: scale(1.12); }
 }
 
-/* Botão enviar */
+/* Botão enviar separado */
 .whats-btn-send {
   width: 40px !important;
   height: 40px !important;
@@ -1547,7 +1567,7 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
 
 .whats-emoji-picker {
   position: absolute;
-  bottom: 52px;
+  bottom: 50px;
   left: 0;
   background: white;
   border: 1px solid var(--border);
@@ -1557,7 +1577,7 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 4px;
-  z-index: 200;
+  z-index: 300;
   width: 210px;
 }
 
@@ -1607,23 +1627,176 @@ input[type="file"]::file-selector-button:hover { background: var(--border); }
   font-size: 0.82rem;
   font-weight: 500;
   transition: background 0.15s;
+  max-width: 220px;
 }
 
 .whats-midia-arquivo:hover { background: rgba(0,0,0,0.1); }
-
 .whats-midia-arquivo span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Garante que emojis e texto com quebra de linha renderizam certo */
-.whats-bubble span {
-  white-space: pre-wrap;
-  word-break: break-word;
+/* ════════════════════════════════════════════════════════
+   ATENDIMENTO — MENU DE TÓPICOS E SUPORTE
+   ════════════════════════════════════════════════════════ */
+
+.suporte-btn-humano {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  margin-left: auto;
 }
 
-/* Altura redimensionável do chat */
-.whats-chat-layout {
+.suporte-btn-humano:hover { background: rgba(255,255,255,0.28); }
+
+.suporte-bubble-bot {
+  align-self: flex-start;
+  background: #F5F3FF;
+  color: #1E1B4B;
+  border: 1px solid #DDD6FE;
+  border-bottom-left-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  max-width: 88%;
+}
+
+.suporte-bubble-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.6;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.suporte-menu-topicos {
+  width: 100%;
+  padding: 4px 0 8px;
+}
+
+.suporte-menu-topicos p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.suporte-topicos-grid {
   display: flex;
-  height: 600px;
-  overflow: hidden;
-  resize: vertical;
-  min-height: 400px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suporte-topico-btn {
+  background: white;
+  border: 1.5px solid #C4B5FD;
+  color: #5B21B6;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.suporte-topico-btn:hover {
+  background: #F5F3FF;
+  border-color: #7C3AED;
+  color: #4C1D95;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(124,58,237,0.15);
+}
+
+.suporte-topico-btn:active { transform: translateY(0); }
+
+.suporte-topico-humano {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+  width: 100%;
+  text-align: center !important;
+  margin-top: 2px;
+  font-weight: 600 !important;
+}
+
+.suporte-topico-humano:hover {
+  background: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(26,54,93,0.25) !important;
+}
+
+.suporte-digitando {
+  padding: 12px 16px !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 5px;
+  align-items: center;
+}
+
+.suporte-digitando .dot {
+  width: 8px;
+  height: 8px;
+  background: #7C3AED;
+  border-radius: 50%;
+  animation: bounce 1.2s infinite;
+}
+
+.suporte-digitando .dot:nth-child(2) { animation-delay: 0.2s; }
+.suporte-digitando .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-7px); opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .suporte-topico-btn { font-size: 0.78rem; padding: 7px 12px; }
+}
+
+/* ── Link Manual na topbar ─────────────────────────────── */
+.topbar-manual {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: background 0.15s;
+  font-weight: 500;
+}
+
+.topbar-manual:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Bolha do sistema/bot no Atendimento Chat ──────────── */
+.atend-bubble-sistema {
+  align-self: flex-start;
+  background: #F5F3FF;
+  color: #3B0764;
+  border: 1px solid #DDD6FE;
+  border-bottom-left-radius: 3px;
+  max-width: 88%;
+}
+
+.atend-bubble-label-sistema {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.6;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }

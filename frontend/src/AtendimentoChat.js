@@ -205,8 +205,17 @@ export default function AtendimentoChat() {
               {mensagens.map((m, i) => (
                 <div
                   key={i}
-                  className={`atend-bubble ${m.remetente === "admin" ? "atend-bubble-admin" : "atend-bubble-aluno"}`}
+                  className={`atend-bubble ${
+                    m.remetente === "admin"
+                      ? "atend-bubble-admin"
+                      : m.remetente === "sistema"
+                      ? "atend-bubble-sistema"
+                      : "atend-bubble-aluno"
+                  }`}
                 >
+                  {m.remetente === "sistema" && (
+                    <span className="atend-bubble-label-sistema">🤖 Assistente</span>
+                  )}
                   <span>{m.conteudo}</span>
                   <time>{formatarHora(m.created_at)}</time>
                 </div>

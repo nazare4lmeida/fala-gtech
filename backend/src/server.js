@@ -330,7 +330,6 @@ wppconnect
 // ─── POST /send-bulk ──────────────────────────────────────────────────────────
 app.post("/send-bulk", verificarToken, async (req, res) => {
   const { message, students, limit = 50 } = req.body;
-  console.log("📤 send-bulk recebido:", { message, total: students?.length });
 
   if (!whatsappClient)
     return res.status(503).json({ error: "WhatsApp não conectado." });
@@ -343,8 +342,10 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
       try {
         let num = String(student.telefone).replace(/\D/g, "");
         if (!num.startsWith("55")) num = "55" + num;
+
         const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
-        if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
+        if (!check.canReceiveMessage)
+          throw new Error("Número sem WhatsApp ativo");
 
         const msg = message
           .replace(/{nome}/g, student.nome || "")
@@ -353,18 +354,24 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
         await whatsappClient.sendText(check.id._serialized, msg);
 
         const { data: atual } = await supabase
-          .from("alunos").select("historico").eq("id", student.id).single();
+          .from("alunos")
+          .select("historico")
+          .eq("id", student.id)
+          .single();
 
         const hist = [
           ...(atual?.historico || []),
           { tipo: "saida", texto: msg, data: new Date().toISOString() },
         ];
 
-        await supabase.from("alunos").update({
-          status: "enviado",
-          data_envio: new Date().toISOString(),
-          historico: hist,
-        }).eq("id", student.id);
+        await supabase
+          .from("alunos")
+          .update({
+            status: "enviado",
+            data_envio: new Date().toISOString(),
+            historico: hist,
+          })
+          .eq("id", student.id);
 
         console.log(`✅ Enviado → ${student.nome}`);
         if (lote.indexOf(student) < lote.length - 1) {
@@ -372,7 +379,10 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
         }
       } catch (err) {
         console.error(`❌ Falha → ${student.nome}:`, err.message);
-        await supabase.from("alunos").update({ status: "erro" }).eq("id", student.id);
+        await supabase
+          .from("alunos")
+          .update({ status: "erro" })
+          .eq("id", student.id);
       }
     }
     console.log("🏁 Lote finalizado.");
@@ -392,12 +402,12 @@ app.post("/send-audio", verificarToken, async (req, res) => {
     const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
     if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
 
-    // Remove o prefixo data:audio/...;base64, se existir
+    // Remove prefixo data:audio/...;base64, se presente
     const base64Clean = audioBase64.includes(",")
       ? audioBase64.split(",")[1]
       : audioBase64;
 
-    // sendVoiceBase64 é o método correto do WPPConnect
+    // sendVoiceBase64 é o método correto do WPPConnect para áudio base64
     await whatsappClient.sendVoiceBase64(check.id._serialized, base64Clean);
 
     const { data: atual } = await supabase

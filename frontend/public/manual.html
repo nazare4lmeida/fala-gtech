@@ -1,0 +1,1063 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Manual de Uso — Geração Tech CRM</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      :root {
+        --primary: #1a365d;
+        --accent: #2563eb;
+        --green: #16a34a;
+        --border: #e2e8f0;
+        --bg: #f1f5f9;
+        --text: #1e293b;
+        --muted: #64748b;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.65;
+      }
+
+      /* ── Header ── */
+      .header {
+        background: var(--primary);
+        color: white;
+        padding: 40px 0 32px;
+        text-align: center;
+      }
+
+      .header-badge {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 20px;
+        padding: 4px 14px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        font-size: 1rem;
+        opacity: 0.75;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      /* ── Nav índice ── */
+      .nav {
+        background: white;
+        border-bottom: 1px solid var(--border);
+        padding: 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      }
+
+      .nav-inner {
+        max-width: 900px;
+        margin: 0 auto;
+        display: flex;
+        gap: 0;
+        overflow-x: auto;
+        padding: 0 20px;
+      }
+
+      .nav a {
+        display: block;
+        padding: 14px 16px;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--muted);
+        text-decoration: none;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+
+      .nav a:hover {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+      }
+
+      /* ── Layout ── */
+      .container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px 60px;
+      }
+
+      /* ── Seções ── */
+      .section {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 28px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+
+      .section-header {
+        background: var(--primary);
+        color: white;
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .section-icon {
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+
+      .section-header h2 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0;
+      }
+
+      .section-header p {
+        font-size: 0.78rem;
+        opacity: 0.75;
+        margin: 2px 0 0;
+      }
+
+      .section-body {
+        padding: 24px;
+      }
+
+      /* ── Passos ── */
+      .steps {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .step {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .step-num {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.82rem;
+        font-weight: 700;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .step-content h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+
+      .step-content p {
+        font-size: 0.85rem;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      /* ── Alertas ── */
+      .alert {
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 0.85rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 12px 0;
+      }
+
+      .alert-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+
+      .alert-info {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+      }
+      .alert-warn {
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+      }
+      .alert-success {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+      }
+      .alert-danger {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+      }
+
+      /* ── Tags de aba ── */
+      .tab-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text);
+        vertical-align: middle;
+      }
+
+      /* ── Grid de recursos ── */
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+        margin-top: 4px;
+      }
+
+      .feature-item {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .feature-item h4 {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .feature-item p {
+        font-size: 0.8rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      /* ── Tabela de atalhos ── */
+      .shortcut-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      .shortcut-table th {
+        text-align: left;
+        padding: 10px 14px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--muted);
+      }
+
+      .shortcut-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .shortcut-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      kbd {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-family: monospace;
+        font-size: 0.8rem;
+      }
+
+      /* ── Divider ── */
+      hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 20px 0;
+      }
+
+      /* ── Footer ── */
+      .footer {
+        text-align: center;
+        padding: 32px 20px;
+        font-size: 0.82rem;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        background: white;
+      }
+
+      @media (max-width: 600px) {
+        .feature-grid {
+          grid-template-columns: 1fr;
+        }
+        .header h1 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <div class="header-badge">Versão 3.0</div>
+      <h1>📘 Manual de Uso</h1>
+      <p>Geração Tech CRM — Guia completo para a equipe</p>
+    </div>
+
+    <!-- Nav -->
+    <nav class="nav">
+      <div class="nav-inner">
+        <a href="#inicio">🚀 Início</a>
+        <a href="#login">🔐 Login</a>
+        <a href="#whatsapp">💬 WhatsApp</a>
+        <a href="#gestao">👥 Gestão</a>
+        <a href="#chat-admin">🎧 Suporte</a>
+        <a href="#email">📧 E-mail</a>
+        <a href="#dashboard">📊 Dashboard</a>
+        <a href="#dicas">💡 Dicas</a>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Visão Geral -->
+      <div class="section" id="inicio">
+        <div class="section-header">
+          <div class="section-icon">🖥️</div>
+          <div>
+            <h2>Visão Geral do Sistema</h2>
+            <p>O que é e como está organizado</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <p style="margin-bottom: 16px">
+            O <strong>Geração Tech CRM</strong> é o sistema de gestão e
+            comunicação com alunos do programa. Ele permite disparar mensagens
+            em massa pelo WhatsApp e e-mail, acompanhar respostas em tempo real,
+            gerenciar contatos e atender alunos pelo chat de suporte.
+          </p>
+
+          <div class="feature-grid">
+            <div class="feature-item">
+              <h4>💬 Disparo WhatsApp</h4>
+              <p>
+                Importe planilhas e envie mensagens personalizadas para todos os
+                alunos ou grupos selecionados.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>👥 Gestão & Relatórios</h4>
+              <p>
+                Visualize, edite e exporte todos os contatos. Acompanhe quem
+                respondeu e qual foi o feedback.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>📱 Chat WhatsApp</h4>
+              <p>
+                Veja o histórico de conversas individuais e responda diretamente
+                pelo sistema.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>🎧 Suporte ao Aluno</h4>
+              <p>
+                Atenda chamados abertos pelos alunos via portal
+                <code>/suporte</code> em tempo real.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>📧 Disparo E-mail</h4>
+              <p>
+                Envie e-mails formatados com variáveis personalizadas para
+                alunos com e-mail cadastrado.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>📊 Dashboard</h4>
+              <p>
+                Acompanhe taxas de contato, engajamento e distribuição de status
+                em tempo real.
+              </p>
+            </div>
+          </div>
+
+          <div class="alert alert-info" style="margin-top: 16px">
+            <span class="alert-icon">ℹ️</span>
+            <span
+              >O sistema funciona com o
+              <strong>backend rodando localmente</strong> +
+              <strong>ngrok ativo</strong>. Sem eles, as funcionalidades de
+              WhatsApp e e-mail não funcionam.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Login -->
+      <div class="section" id="login">
+        <div class="section-header">
+          <div class="section-icon">🔐</div>
+          <div>
+            <h2>Login e Acesso</h2>
+            <p>Como entrar no sistema</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Acesse o endereço do sistema</h4>
+                <p>
+                  Abra o navegador e acesse
+                  <strong>fala-gtech.vercel.app</strong> (ou o endereço
+                  informado pela equipe).
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Digite suas credenciais</h4>
+                <p>
+                  Informe o e-mail e a senha cadastrados. Pressione
+                  <kbd>Enter</kbd> ou clique em <strong>Entrar</strong>.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Sessão válida por 8 horas</h4>
+                <p>
+                  Você permanece logado por até 8 horas. Após esse período, faça
+                  login novamente.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-warn" style="margin-top: 16px">
+            <span class="alert-icon">⚠️</span>
+            <span
+              >Não compartilhe sua senha. Cada membro da equipe deve ter seu
+              próprio acesso cadastrado no banco de dados.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Disparo WhatsApp -->
+      <div class="section" id="whatsapp">
+        <div class="section-header">
+          <div class="section-icon">💬</div>
+          <div>
+            <h2>Aba: Disparo WhatsApp</h2>
+            <p>Importar contatos e enviar mensagens em massa</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <h3
+            style="
+              font-size: 0.9rem;
+              margin-bottom: 12px;
+              color: var(--primary);
+            "
+          >
+            📥 Importar planilha Excel
+          </h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Prepare a planilha</h4>
+                <p>
+                  A planilha deve ter as colunas <strong>nome</strong> e
+                  <strong>telefone</strong> (obrigatórios). As colunas
+                  <strong>curso</strong> e <strong>email</strong> são opcionais.
+                  O cabeçalho pode estar em maiúsculo ou minúsculo.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Clique em "Importar Excel"</h4>
+                <p>
+                  Selecione o arquivo <code>.xlsx</code> ou <code>.xls</code>. O
+                  sistema irá importar todos os contatos válidos
+                  automaticamente.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Ou adicione manualmente</h4>
+                <p>
+                  Clique em <strong>"Adicionar Aluno"</strong> para cadastrar um
+                  contato individual. Nome e telefone são obrigatórios.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <hr />
+
+          <h3
+            style="font-size: 0.9rem; margin: 0 0 12px; color: var(--primary)"
+          >
+            📤 Enviar mensagens
+          </h3>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Configure a mensagem</h4>
+                <p>
+                  Use as variáveis <strong>{nome}</strong> e
+                  <strong>{curso}</strong> na mensagem para personalizar
+                  automaticamente. Exemplo:
+                  <em>"Olá {nome}, sua vaga em {curso} foi confirmada!"</em>
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Disparar Lote</h4>
+                <p>
+                  Envia para todos os contatos com status
+                  <strong>pendente</strong>, em grupos de até 50. Há um
+                  intervalo de 15 segundos entre cada envio para evitar
+                  bloqueios do WhatsApp.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Enviar Selecionados</h4>
+                <p>
+                  Marque as caixas dos contatos desejados na tabela e clique em
+                  <strong>"Enviar Selecionados"</strong> para enviar apenas para
+                  esse grupo.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-warn" style="margin-top: 16px">
+            <span class="alert-icon">⚠️</span>
+            <span
+              >O WhatsApp precisa estar conectado (backend + ngrok rodando). Se
+              o disparo retornar erro 503, reinicie o backend.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat WhatsApp -->
+      <div class="section">
+        <div class="section-header">
+          <div class="section-icon">📱</div>
+          <div>
+            <h2>Aba: Chat WhatsApp</h2>
+            <p>Histórico e respostas individuais</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Selecione um contato na lista lateral</h4>
+                <p>
+                  Apenas contatos já contatados aparecem aqui. Contatos com
+                  resposta nova mostram o badge <strong>NOVO</strong> em verde.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Leia o histórico da conversa</h4>
+                <p>
+                  Mensagens enviadas aparecem à direita (verde). Respostas
+                  recebidas aparecem à esquerda (branco).
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Responda diretamente</h4>
+                <p>
+                  Digite no campo inferior e pressione <kbd>Enter</kbd> ou
+                  clique no botão verde para enviar. Você também pode enviar
+                  <strong>emojis</strong> (botão 😊) e
+                  <strong>áudios</strong> (segure o botão 🎤 e solte para
+                  enviar).
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-info" style="margin-top: 16px">
+            <span class="alert-icon">ℹ️</span>
+            <span
+              >O chat atualiza automaticamente quando um aluno responde. Não é
+              necessário recarregar a página.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Gestão -->
+      <div class="section" id="gestao">
+        <div class="section-header">
+          <div class="section-icon">👥</div>
+          <div>
+            <h2>Aba: Gestão & Relatórios</h2>
+            <p>Editar contatos, excluir e exportar dados</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Editar um contato</h4>
+                <p>
+                  Na tabela "Histórico Geral", clique no ícone de
+                  <strong>lápis ✏️</strong> na linha do contato. Altere os
+                  campos e clique no ícone de
+                  <strong>confirmação ✔️</strong> para salvar.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Excluir contatos</h4>
+                <p>
+                  Clique no ícone de <strong>lixeira 🗑️</strong> para excluir
+                  individualmente. Para excluir em massa, marque os contatos e
+                  clique em <strong>"Excluir"</strong>.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Exportar relatório</h4>
+                <p>
+                  Clique em <strong>"Exportar Excel"</strong> para baixar uma
+                  planilha com todos os dados: nome, telefone, status, se
+                  respondeu, feedback e data de envio.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h4>Buscar contatos</h4>
+                <p>
+                  Use o campo de busca para filtrar por nome, telefone, curso ou
+                  status em tempo real.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <hr />
+          <h3
+            style="
+              font-size: 0.9rem;
+              margin-bottom: 10px;
+              color: var(--primary);
+            "
+          >
+            📋 Status dos contatos
+          </h3>
+          <table class="shortcut-table">
+            <tr>
+              <th>Status</th>
+              <th>Significado</th>
+            </tr>
+            <tr>
+              <td>🟡 pendente</td>
+              <td>Contato importado mas ainda não foi enviada mensagem</td>
+            </tr>
+            <tr>
+              <td>🟢 enviado</td>
+              <td>Mensagem WhatsApp enviada com sucesso</td>
+            </tr>
+            <tr>
+              <td>🔵 email_enviado</td>
+              <td>E-mail enviado com sucesso</td>
+            </tr>
+            <tr>
+              <td>🟢 concluido</td>
+              <td>Aluno respondeu e a conversa foi registrada</td>
+            </tr>
+            <tr>
+              <td>🔴 erro</td>
+              <td>Falha no envio (número inválido, sem WhatsApp, etc.)</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Suporte ao Aluno -->
+      <div class="section" id="chat-admin">
+        <div class="section-header">
+          <div class="section-icon">🎧</div>
+          <div>
+            <h2>Aba: Suporte ao Aluno</h2>
+            <p>Atendimento via chat do portal</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="alert alert-info" style="margin-bottom: 16px">
+            <span class="alert-icon">ℹ️</span>
+            <span
+              >O aluno acessa o portal de suporte em
+              <strong>fala-gtech.vercel.app/suporte</strong>. Ele conversa com o
+              assistente automático, e se precisar de atendimento humano, o
+              chamado aparece nesta aba.</span
+            >
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Chamados aparecem automaticamente</h4>
+                <p>
+                  Quando um aluno clica em "Falar com a equipe" no portal, o
+                  chamado aparece na lista lateral esquerda desta aba em tempo
+                  real.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Badge de mensagens não lidas</h4>
+                <p>
+                  O número em vermelho ao lado do nome indica quantas mensagens
+                  não foram lidas ainda.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Responda pelo sistema</h4>
+                <p>
+                  Digite no campo inferior e pressione <kbd>Enter</kbd>. O aluno
+                  vê a resposta em tempo real no portal dele.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h4>Encerrar chamado</h4>
+                <p>
+                  Clique em <strong>"Encerrar"</strong> no canto superior
+                  direito do chat para fechar o atendimento. O chamado sai da
+                  lista.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="alert alert-success" style="margin-top: 16px">
+            <span class="alert-icon">✅</span>
+            <span
+              >O assistente automático responde perguntas frequentes sem
+              precisar de intervenção humana. Apenas chamados que precisam de
+              atenção real chegam até você.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Disparo E-mail -->
+      <div class="section" id="email">
+        <div class="section-header">
+          <div class="section-icon">📧</div>
+          <div>
+            <h2>Aba: Disparo E-mail</h2>
+            <p>Enviar e-mails em massa formatados</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Selecione os destinatários</h4>
+                <p>
+                  Apenas alunos com e-mail cadastrado aparecem aqui. Marque as
+                  caixas dos desejados ou importe uma nova planilha com a coluna
+                  <strong>email</strong>.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Configure o assunto</h4>
+                <p>
+                  Digite o assunto do e-mail. Exemplo:
+                  <em>[Geração Tech] Confirmação de Matrícula</em>
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Escreva o corpo da mensagem</h4>
+                <p>
+                  Use <strong>{nome}</strong> e <strong>{curso}</strong> para
+                  personalizar. O sistema substitui automaticamente antes de
+                  enviar.
+                </p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-content">
+                <h4>Clique em Enviar</h4>
+                <p>
+                  Ao final, um resumo mostra quantos e-mails foram enviados e se
+                  houve alguma falha.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="alert alert-warn" style="margin-top: 16px">
+            <span class="alert-icon">⚠️</span>
+            <span
+              >O envio usa o Gmail configurado no backend. Se aparecer erro de
+              autenticação, a <strong>Senha de App</strong> do Gmail pode ter
+              expirado.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard -->
+      <div class="section" id="dashboard">
+        <div class="section-header">
+          <div class="section-icon">📊</div>
+          <div>
+            <h2>Aba: Dashboard</h2>
+            <p>Métricas e acompanhamento em tempo real</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <div class="feature-grid">
+            <div class="feature-item">
+              <h4>👥 Total de Alunos</h4>
+              <p>
+                Todos os contatos cadastrados no banco, independentemente do
+                status.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>🕐 Pendentes</h4>
+              <p>
+                Contatos importados que ainda não receberam nenhuma mensagem.
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>📤 Contatados</h4>
+              <p>
+                Total de alunos que já receberam algum tipo de mensagem
+                (WhatsApp ou e-mail).
+              </p>
+            </div>
+            <div class="feature-item">
+              <h4>💬 Responderam</h4>
+              <p>Alunos que responderam de volta ao número de trabalho.</p>
+            </div>
+          </div>
+          <div class="alert alert-info" style="margin-top: 16px">
+            <span class="alert-icon">ℹ️</span>
+            <span
+              >O dashboard atualiza automaticamente a cada vez que um dado muda
+              no banco — sem necessidade de recarregar a página.</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- Dicas e Problemas -->
+      <div class="section" id="dicas">
+        <div class="section-header">
+          <div class="section-icon">💡</div>
+          <div>
+            <h2>Dicas & Solução de Problemas</h2>
+            <p>Os erros mais comuns e como resolver</p>
+          </div>
+        </div>
+        <div class="section-body">
+          <table class="shortcut-table">
+            <tr>
+              <th>Problema</th>
+              <th>Solução</th>
+            </tr>
+            <tr>
+              <td>❌ "Erro ao conectar com o servidor"</td>
+              <td>
+                O backend não está rodando. Abra o terminal, vá na pasta
+                <code>backend</code> e rode <code>npm start</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>❌ "WhatsApp não conectado" (503)</td>
+              <td>
+                O backend iniciou mas o WhatsApp não conectou. Verifique o
+                terminal — pode ser necessário escanear o QR code novamente.
+              </td>
+            </tr>
+            <tr>
+              <td>❌ Login retorna "Credenciais inválidas"</td>
+              <td>
+                Verifique e-mail e senha. Confirme que o usuário existe na
+                tabela <code>usuarios</code> no Supabase.
+              </td>
+            </tr>
+            <tr>
+              <td>❌ Planilha importada sem nenhum aluno</td>
+              <td>
+                Verifique se as colunas se chamam exatamente
+                <strong>nome</strong> e <strong>telefone</strong> (sem acento,
+                minúsculo).
+              </td>
+            </tr>
+            <tr>
+              <td>❌ Mensagens não aparecem no Chat WhatsApp</td>
+              <td>
+                Confirme que o Realtime está ativado no Supabase para a tabela
+                <code>alunos</code> (Database → Replication).
+              </td>
+            </tr>
+            <tr>
+              <td>❌ E-mail com erro de autenticação</td>
+              <td>
+                A Senha de App do Gmail expirou ou foi revogada. Gere uma nova
+                em: Conta Google → Segurança → Senhas de App.
+              </td>
+            </tr>
+            <tr>
+              <td>❌ URL do ngrok mudou</td>
+              <td>
+                Atualize a variável <strong>REACT_APP_BACKEND_URL</strong> na
+                Vercel com a nova URL e faça Redeploy.
+              </td>
+            </tr>
+            <tr>
+              <td>❌ Áudio não é enviado</td>
+              <td>
+                Permita o acesso ao microfone no navegador. Segure o botão 🎤,
+                fale, e só <strong>solte</strong> para enviar.
+              </td>
+            </tr>
+          </table>
+
+          <hr />
+
+          <h3
+            style="
+              font-size: 0.9rem;
+              margin-bottom: 10px;
+              color: var(--primary);
+            "
+          >
+            ⌨️ Atalhos úteis
+          </h3>
+          <table class="shortcut-table">
+            <tr>
+              <th>Ação</th>
+              <th>Atalho</th>
+            </tr>
+            <tr>
+              <td>Enviar mensagem no chat</td>
+              <td><kbd>Enter</kbd></td>
+            </tr>
+            <tr>
+              <td>Buscar contato na tabela</td>
+              <td>Clique no campo de busca e comece a digitar</td>
+            </tr>
+            <tr>
+              <td>Confirmar edição de contato</td>
+              <td>Clique no ícone ✔️ na linha editada</td>
+            </tr>
+            <tr>
+              <td>Cancelar edição de contato</td>
+              <td>Clique no ícone ✖️ na linha editada</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Geração Tech CRM 3.0 — Manual de Uso &nbsp;·&nbsp; IEL-CE &nbsp;·&nbsp;
+      Para suporte interno, fale com o responsável técnico do sistema.
+    </div>
+  </body>
+</html>
