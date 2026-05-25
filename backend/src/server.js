@@ -283,6 +283,7 @@ function iniciarWhatsApp() {
       autoClose: false,
       puppeteerOptions: {
         executablePath: undefined,
+        timeout: 60000,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
@@ -290,13 +291,25 @@ function iniciarWhatsApp() {
           "--disable-gpu",
           "--no-first-run",
           "--no-zygote",
-          "--single-process",
         ],
       },
     })
     .then((client) => {
       whatsappClient = client;
       console.log("✅ WhatsApp conectado!");
+
+      setInterval(
+        async () => {
+          try {
+            await client.isConnected();
+          } catch {
+            console.log("🔄 Ping falhou — reconectando...");
+            whatsappClient = null;
+            iniciarWhatsApp();
+          }
+        },
+        2 * 60 * 1000,
+      );
 
       // Reconecta automaticamente se o cliente fechar
       client.onStateChange((state) => {
@@ -502,12 +515,10 @@ app.post("/send-audio", verificarToken, async (req, res) => {
     ) {
       whatsappClient = null;
       setTimeout(iniciarWhatsApp, 3000);
-      return res
-        .status(503)
-        .json({
-          error:
-            "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
-        });
+      return res.status(503).json({
+        error:
+          "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
+      });
     }
 
     res.status(500).json({ error: err.message });
@@ -572,12 +583,10 @@ app.post("/send-image", verificarToken, async (req, res) => {
     ) {
       whatsappClient = null;
       setTimeout(iniciarWhatsApp, 3000);
-      return res
-        .status(503)
-        .json({
-          error:
-            "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
-        });
+      return res.status(503).json({
+        error:
+          "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
+      });
     }
 
     res.status(500).json({ error: err.message });
