@@ -103,9 +103,24 @@ async function buscarAlunoPorNome(nomeRecebido) {
   return null;
 }
 
+// ─── Verifica se o cliente WhatsApp está saudável ─────────────────────────────
+async function clienteSaudavel() {
+  if (!whatsappClient) return false;
+  try {
+    await whatsappClient.isConnected();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ─── GET /status ──────────────────────────────────────────────────────────────
 app.get("/status", (req, res) =>
-  res.json({ ok: true, timestamp: new Date().toISOString() }),
+  res.json({
+    ok: true,
+    whatsapp: !!whatsappClient,
+    timestamp: new Date().toISOString(),
+  }),
 );
 
 // ─── POST /login ──────────────────────────────────────────────────────────────
@@ -261,102 +276,130 @@ app.post("/chat-bot", async (req, res) => {
 const wppconnect = require("@wppconnect-team/wppconnect");
 let whatsappClient = null;
 
-wppconnect
-  .create({
-    session: "geracao-tech",
-    autoClose: false,
-    puppeteerOptions: {
-      executablePath: undefined,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-      ],
-    },
-  })
-  .then((client) => {
-    whatsappClient = client;
-    console.log("✅ WhatsApp conectado!");
+function iniciarWhatsApp() {
+  wppconnect
+    .create({
+      session: "geracao-tech",
+      autoClose: false,
+      puppeteerOptions: {
+        executablePath: undefined,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+          "--no-first-run",
+          "--no-zygote",
+          "--single-process",
+        ],
+      },
+    })
+    .then((client) => {
+      whatsappClient = client;
+      console.log("✅ WhatsApp conectado!");
 
-    client.onMessage(async (message) => {
-      if (message.isGroupMsg) return;
-      if (message.from === "status@broadcast") return;
+      // Reconecta automaticamente se o cliente fechar
+      client.onStateChange((state) => {
+        console.log("📡 Estado WhatsApp:", state);
+        if (
+          state === "CONFLICT" ||
+          state === "UNLAUNCHED" ||
+          state === "UNPAIRED"
+        ) {
+          console.log("🔄 Reconectando WhatsApp...");
+          whatsappClient = null;
+          setTimeout(iniciarWhatsApp, 5000);
+        }
+      });
 
-      const nomeRecebido = message.sender?.pushname || message.notifyName || "";
-      const corpo = message.body;
+      client.onMessage(async (message) => {
+        if (message.isGroupMsg) return;
+        if (message.from === "status@broadcast") return;
 
-      console.log("\n" + "═".repeat(50));
-      console.log(`📩 MENSAGEM RECEBIDA`);
-      console.log(`   De:   ${message.from}`);
-      console.log(`   Nome: ${nomeRecebido}`);
-      console.log(`   Tipo: ${message.type}`);
-      console.log(`   Texto: ${corpo}`);
-      console.log("═".repeat(50));
+        const nomeRecebido =
+          message.sender?.pushname || message.notifyName || "";
+        const corpo = message.body;
 
-      if (!nomeRecebido) {
-        console.warn("⚠️ pushname vazio.");
-        return;
-      }
+        console.log("\n" + "═".repeat(50));
+        console.log(`📩 MENSAGEM RECEBIDA`);
+        console.log(`   De:   ${message.from}`);
+        console.log(`   Nome: ${nomeRecebido}`);
+        console.log(`   Tipo: ${message.type}`);
+        console.log(`   Texto: ${corpo}`);
+        console.log("═".repeat(50));
 
-      try {
-        const aluno = await buscarAlunoPorNome(nomeRecebido);
-        if (!aluno) {
-          console.warn(`⚠️ Aluno não encontrado.`);
+        if (!nomeRecebido) {
+          console.warn("⚠️ pushname vazio.");
           return;
         }
 
-        // Determina o tipo de mensagem recebida
-        let entradaHistorico;
-        if (message.type === "ptt" || message.type === "audio") {
-          // Áudio recebido — salva indicador (mídia não é armazenada localmente)
-          entradaHistorico = {
-            tipo: "entrada",
-            texto: "[Áudio recebido]",
-            mimetype: "audio/ogg",
-            data: new Date().toISOString(),
-          };
-        } else if (message.type === "image") {
-          entradaHistorico = {
-            tipo: "entrada",
-            texto: corpo || "[Imagem recebida]",
-            mimetype: "image/jpeg",
-            data: new Date().toISOString(),
-          };
-        } else {
-          entradaHistorico = {
-            tipo: "entrada",
-            texto: corpo,
-            data: new Date().toISOString(),
-          };
+        try {
+          const aluno = await buscarAlunoPorNome(nomeRecebido);
+          if (!aluno) {
+            console.warn(`⚠️ Aluno não encontrado.`);
+            return;
+          }
+
+          let entradaHistorico;
+          if (message.type === "ptt" || message.type === "audio") {
+            entradaHistorico = {
+              tipo: "entrada",
+              texto: "🎤 [Áudio recebido]",
+              mimetype: "audio/ogg",
+              data: new Date().toISOString(),
+            };
+          } else if (message.type === "image") {
+            entradaHistorico = {
+              tipo: "entrada",
+              texto: corpo || "🖼️ [Imagem recebida]",
+              mimetype: "image/jpeg",
+              data: new Date().toISOString(),
+            };
+          } else {
+            entradaHistorico = {
+              tipo: "entrada",
+              texto: corpo,
+              data: new Date().toISOString(),
+            };
+          }
+
+          const novoHistorico = [...(aluno.historico || []), entradaHistorico];
+          const { error: updateError } = await supabase
+            .from("alunos")
+            .update({
+              respondeu: true,
+              ultima_resposta: corpo || entradaHistorico.texto,
+              data_resposta: new Date().toISOString(),
+              status: "concluido",
+              historico: novoHistorico,
+            })
+            .eq("id", aluno.id);
+
+          if (updateError)
+            console.error("❌ Erro ao salvar:", updateError.message);
+          else console.log(`✅ Salvo! Aluno: "${aluno.nome}"`);
+        } catch (err) {
+          console.error("❌ Erro inesperado:", err.message);
         }
-
-        const novoHistorico = [...(aluno.historico || []), entradaHistorico];
-        const { error: updateError } = await supabase
-          .from("alunos")
-          .update({
-            respondeu: true,
-            ultima_resposta: corpo || entradaHistorico.texto,
-            data_resposta: new Date().toISOString(),
-            status: "concluido",
-            historico: novoHistorico,
-          })
-          .eq("id", aluno.id);
-
-        if (updateError)
-          console.error("❌ Erro ao salvar:", updateError.message);
-        else console.log(`✅ Salvo! Aluno: "${aluno.nome}"`);
-      } catch (err) {
-        console.error("❌ Erro inesperado:", err.message);
-      }
+      });
+    })
+    .catch((err) => {
+      console.error("❌ Erro ao iniciar WPPConnect:", err.message);
+      console.log("🔄 Tentando reconectar em 10 segundos...");
+      setTimeout(iniciarWhatsApp, 10000);
     });
-  })
-  .catch((err) => {
-    console.error("❌ Erro ao iniciar WPPConnect:", err.message);
-  });
+}
+
+iniciarWhatsApp();
+
+// ─── Helper: formata número e verifica WhatsApp ───────────────────────────────
+async function prepararNumero(telefone) {
+  let num = String(telefone).replace(/\D/g, "");
+  if (!num.startsWith("55")) num = "55" + num;
+  const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
+  if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
+  return check.id._serialized;
+}
 
 // ─── POST /send-bulk ──────────────────────────────────────────────────────────
 app.post("/send-bulk", verificarToken, async (req, res) => {
@@ -370,16 +413,11 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
   (async () => {
     for (const student of lote) {
       try {
-        let num = String(student.telefone).replace(/\D/g, "");
-        if (!num.startsWith("55")) num = "55" + num;
-        const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
-        if (!check.canReceiveMessage)
-          throw new Error("Número sem WhatsApp ativo");
-
+        const to = await prepararNumero(student.telefone);
         const msg = message
           .replace(/{nome}/g, student.nome || "")
           .replace(/{curso}/g, student.curso || "");
-        await whatsappClient.sendText(check.id._serialized, msg);
+        await whatsappClient.sendText(to, msg);
 
         const { data: atual } = await supabase
           .from("alunos")
@@ -415,29 +453,23 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
 });
 
 // ─── POST /send-audio ─────────────────────────────────────────────────────────
-// Método correto: sendPttFromBase64 (envia como nota de voz/PTT)
 app.post("/send-audio", verificarToken, async (req, res) => {
   const { student, audioBase64 } = req.body;
   if (!whatsappClient)
-    return res.status(503).json({ error: "WhatsApp não conectado." });
+    return res
+      .status(503)
+      .json({ error: "WhatsApp não conectado. Reinicie o backend." });
 
   try {
-    let num = String(student.telefone).replace(/\D/g, "");
-    if (!num.startsWith("55")) num = "55" + num;
-    const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
-    if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
+    const to = await prepararNumero(student.telefone);
 
-    // sendPttFromBase64(to, base64, filename) — aceita base64 COM ou SEM prefixo data:
-    // O WPPConnect espera o base64 completo COM o prefixo data:audio/ogg;base64,...
-    const base64ComPrefixo = audioBase64.startsWith("data:")
+    // Garante prefixo correto para o WPPConnect
+    const base64Final = audioBase64.startsWith("data:")
       ? audioBase64
       : `data:audio/ogg;base64,${audioBase64}`;
 
-    await whatsappClient.sendPttFromBase64(
-      check.id._serialized,
-      base64ComPrefixo,
-      "audio.ogg",
-    );
+    // sendPttFromBase64: método correto confirmado no código-fonte do WPPConnect 1.38
+    await whatsappClient.sendPttFromBase64(to, base64Final, "audio.ogg");
 
     const { data: atual } = await supabase
       .from("alunos")
@@ -448,7 +480,7 @@ app.post("/send-audio", verificarToken, async (req, res) => {
       ...(atual?.historico || []),
       {
         tipo: "saida",
-        texto: audioBase64,
+        texto: base64Final,
         mimetype: "audio/ogg",
         data: new Date().toISOString(),
       },
@@ -458,40 +490,53 @@ app.post("/send-audio", verificarToken, async (req, res) => {
       .update({ historico: hist })
       .eq("id", student.id);
 
-    console.log(`✅ Áudio enviado → ${student.nome}`);
+    console.log(`✅ Áudio PTT enviado → ${student.nome}`);
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Erro ao enviar áudio:", err.message);
+
+    // Se o frame desconectou, sinaliza para reconectar
+    if (
+      err.message.includes("detached Frame") ||
+      err.message.includes("Session closed")
+    ) {
+      whatsappClient = null;
+      setTimeout(iniciarWhatsApp, 3000);
+      return res
+        .status(503)
+        .json({
+          error:
+            "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
+        });
+    }
+
     res.status(500).json({ error: err.message });
   }
 });
 
 // ─── POST /send-image ─────────────────────────────────────────────────────────
-// Método correto: sendImageFromBase64(to, base64, filename, caption?)
 app.post("/send-image", verificarToken, async (req, res) => {
   const { student, imageBase64, caption } = req.body;
   if (!whatsappClient)
-    return res.status(503).json({ error: "WhatsApp não conectado." });
+    return res
+      .status(503)
+      .json({ error: "WhatsApp não conectado. Reinicie o backend." });
 
   try {
-    let num = String(student.telefone).replace(/\D/g, "");
-    if (!num.startsWith("55")) num = "55" + num;
-    const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
-    if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
+    const to = await prepararNumero(student.telefone);
 
-    // Detecta o tipo de imagem pelo prefixo base64
     const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
     const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
     const ext = mime.split("/")[1] || "jpg";
 
-    // sendImageFromBase64 espera base64 COM prefixo data:image/...;base64,
-    const base64ComPrefixo = imageBase64.startsWith("data:")
+    const base64Final = imageBase64.startsWith("data:")
       ? imageBase64
       : `data:${mime};base64,${imageBase64}`;
 
+    // sendImageFromBase64: método correto confirmado no código-fonte do WPPConnect 1.38
     await whatsappClient.sendImageFromBase64(
-      check.id._serialized,
-      base64ComPrefixo,
+      to,
+      base64Final,
       `imagem.${ext}`,
       caption || "",
     );
@@ -505,7 +550,7 @@ app.post("/send-image", verificarToken, async (req, res) => {
       ...(atual?.historico || []),
       {
         tipo: "saida",
-        texto: imageBase64,
+        texto: base64Final,
         mimetype: mime,
         caption: caption || "",
         data: new Date().toISOString(),
@@ -520,6 +565,21 @@ app.post("/send-image", verificarToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("❌ Erro ao enviar imagem:", err.message);
+
+    if (
+      err.message.includes("detached Frame") ||
+      err.message.includes("Session closed")
+    ) {
+      whatsappClient = null;
+      setTimeout(iniciarWhatsApp, 3000);
+      return res
+        .status(503)
+        .json({
+          error:
+            "WhatsApp desconectado. Reconectando... tente novamente em alguns segundos.",
+        });
+    }
+
     res.status(500).json({ error: err.message });
   }
 });
