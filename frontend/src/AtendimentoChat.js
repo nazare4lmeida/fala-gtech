@@ -1,598 +1,271 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 
-const BACKEND = process.env.REACT_APP_BACKEND_URL || "http://localhost:3001";
-const NUMERO_WHATSAPP = "5585984262845";
-const MSG_REDIRECT =
-  "Sua mensagem foi encaminhada para a nossa equipe. Em breve um atendente entrará em contato com você aqui mesmo. 😊\n\nSe preferir falar pelo WhatsApp, clique no botão abaixo.";
-
-const TOPICOS = [
-  {
-    id: "quem-pode",
-    label: "Quem pode participar?",
-    palavrasChave: [
-      "quem pode",
-      "participar",
-      "requisito",
-      "elegivel",
-      "elegível",
-      "idade",
-      "cearense",
-    ],
-    resposta: `*Quem pode participar do Geração Tech:*\n\n• Cearenses com idade mínima de 16 anos\n\n• *Full Stack:* não ter participado de edições anteriores\n• *IA Generativa:* ter noções de programação e dados\n• *IA e Soft Skills:* ter concluído o Geração Tech ou outro curso de programação (com comprovação)`,
-  },
-  {
-    id: "formacoes",
-    label: "Quais formações estão disponíveis?",
-    palavrasChave: [
-      "formação",
-      "formações",
-      "curso",
-      "cursos",
-      "trilha",
-      "disponível",
-      "disponíveis",
-      "opcoes",
-      "opções",
-    ],
-    resposta: `*Formações disponíveis — todas gratuitas:*\n\n📌 *Desenvolvedor Full Stack* — 500 vagas online\n📌 *IA Generativa* — 200 presenciais + 400 online\n📌 *IA e Soft Skills para Programadores* — 100 presenciais + 500 online\n\nTodas com duração de aproximadamente 3 meses.`,
-  },
-  {
-    id: "horarios",
-    label: "Como funcionam os horários?",
-    palavrasChave: [
-      "horario",
-      "horário",
-      "horarios",
-      "horários",
-      "aula",
-      "aulas",
-      "dias",
-      "turno",
-      "manha",
-      "manhã",
-      "tarde",
-      "semana",
-    ],
-    resposta: `*Horários das aulas:*\n\n🖥️ *Online:* aulas gravadas + 1 aula ao vivo por semana (4h)\n🏫 *Presencial:* 2 encontros por semana, 4h cada — seg/qua ou ter/qui, manhã ou tarde`,
-  },
-  {
-    id: "selecao",
-    label: "Como é o processo seletivo?",
-    palavrasChave: [
-      "seletivo",
-      "seleção",
-      "selecao",
-      "inscricao",
-      "inscrição",
-      "teste",
-      "testes",
-      "processo",
-      "como participar",
-      "como se inscrever",
-    ],
-    resposta: `*Processo seletivo:*\n\n1️⃣ Inscrição no site\n2️⃣ Envio de documentos\n3️⃣ Testes: Raciocínio Lógico, Comportamental e Específico da formação\n\n✅ Todo o processo é *100% gratuito* — sem nenhuma taxa.`,
-  },
-  {
-    id: "gratuito",
-    label: "É gratuito?",
-    palavrasChave: [
-      "gratuito",
-      "gratis",
-      "grátis",
-      "pagar",
-      "pago",
-      "taxa",
-      "custo",
-      "valor",
-      "quanto custa",
-    ],
-    resposta: `✅ Sim! O Geração Tech é *100% gratuito*.\n\nTanto o processo seletivo quanto as formações não têm nenhum custo para o aluno.`,
-  },
-  {
-    id: "ex-alunos",
-    label: "Ex-alunos podem participar?",
-    palavrasChave: [
-      "ex-aluno",
-      "ex aluno",
-      "participei antes",
-      "edicao anterior",
-      "edição anterior",
-      "ja fiz",
-      "já fiz",
-      "participei",
-    ],
-    resposta: `*Ex-alunos do Geração Tech:*\n\n✅ Podem se inscrever novamente\n✅ Foco especial em ex-alunos para *IA e Soft Skills*\n❌ *Full Stack:* ex-alunos NÃO podem participar`,
-  },
-  {
-    id: "documentos",
-    label: "Documentos necessários",
-    palavrasChave: [
-      "documento",
-      "documentos",
-      "comprovante",
-      "endereco",
-      "endereço",
-      "autodeclaracao",
-      "autodeclaração",
-      "rg",
-      "cpf",
-    ],
-    resposta: `*Documentos para inscrição:*\n\nSe não tiver comprovante de endereço em seu nome, você pode usar a *autodeclaração de residência* (modelo no Anexo II do Edital).\n\nDúvidas sobre documentação? Clique em *Falar com a equipe*.`,
-  },
-  {
-    id: "recruiting",
-    label: "O que é o Recruiting Day?",
-    palavrasChave: [
-      "recruiting",
-      "recruiting day",
-      "feira",
-      "emprego",
-      "empregabilidade",
-      "empresa",
-      "vaga",
-      "vagas",
-      "contratacao",
-      "contratação",
-      "evento",
-    ],
-    resposta: `*Recruiting Day Geração Tech 3.0* 🚀\n\n📅 *Data:* 27 de maio de 2026\n📍 *Local:* FIEC — Fortaleza/CE\n✅ *Participação gratuita*\n\n*O que acontece no evento:*\n• +3.000 profissionais formados presentes\n• +30 empresas expositoras com vagas reais\n• Desafio IEL — premiação dos 5 melhores talentos\n• Palestras: IA na prática, Carreiras Tech, Futuro do Trabalho\n• Networking e entrevistas no local\n\n🔗 geracaotech.iel-ce.org.br/recruitingday`,
-  },
-  {
-    id: "formatura",
-    label: "Formatura e eventos finais",
-    palavrasChave: [
-      "formatura",
-      "certificado",
-      "certificação",
-      "conclusao",
-      "conclusão",
-      "evento final",
-      "encerramento",
-    ],
-    resposta: `*Eventos finais do programa:*\n\n🎓 *Formatura* — previsão para 06/05/2026\n💼 *Recruiting Day* — 27/05/2026 na FIEC, Fortaleza\n\nNo Recruiting Day, +30 empresas parceiras estarão presentes com vagas reais para os formandos!`,
-  },
-  {
-    id: "contato",
-    label: "Como entrar em contato?",
-    palavrasChave: [
-      "contato",
-      "email",
-      "e-mail",
-      "duvida",
-      "dúvida",
-      "falar",
-      "ajuda",
-      "suporte",
-      "atendimento",
-    ],
-    resposta: `*Contato com a equipe:*\n\n📧 contato@geracaotech.iel-ce.org.br\n🕐 Segunda a sexta, das 9h às 17h\n📋 Prazo de resposta: até 48 horas úteis\n\nOu clique em *Falar com a equipe* para acionar o atendimento humano aqui mesmo.`,
-  },
-];
-
-function normTexto(str) {
-  if (!str) return "";
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function encontrarTopico(mensagem) {
-  const msgNorm = normTexto(mensagem);
-  let melhorMatch = null;
-  let melhorScore = 0;
-  for (const topico of TOPICOS) {
-    for (const palavra of topico.palavrasChave) {
-      const pNorm = normTexto(palavra);
-      if (msgNorm.includes(pNorm)) {
-        const score = pNorm.length;
-        if (score > melhorScore) {
-          melhorScore = score;
-          melhorMatch = topico;
-        }
-      }
-    }
-  }
-  return melhorMatch;
-}
-
-export default function SuporteAluno() {
-  const [dados, setDados] = useState({ nome: "", telefone: "" });
-  const [sessao, setSessao] = useState(null);
-  const [msg, setMsg] = useState("");
-  const [conversa, setConversa] = useState([]);
+export default function AtendimentoChat() {
+  const [sessoes, setSessoes] = useState([]);
+  const [sessaoAtiva, setSessaoAtiva] = useState(null);
+  const [mensagens, setMensagens] = useState([]);
+  const [novaMsg, setNovaMsg] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
-  const [escalado, setEscalado] = useState(false);
-  const [mostrarMenu, setMostrarMenu] = useState(true);
+  const [naoLidas, setNaoLidas] = useState({});
   const messagesEndRef = useRef(null);
-  const sessaoRef = useRef(null);
 
-  // Mantém ref atualizada para uso dentro de closures
+  // ── Buscar sessões abertas ─────────────────────────────────────────────────
+  const buscarSessoes = async () => {
+    const { data } = await supabase
+      .from("chat_sessoes")
+      .select("*")
+      .eq("status", "aberto")
+      .order("created_at", { ascending: false });
+    setSessoes(data || []);
+  };
+
+  // ── Realtime: novas sessões e updates ─────────────────────────────────────
   useEffect(() => {
-    sessaoRef.current = sessao;
-  }, [sessao]);
+    buscarSessoes();
+    const ch = supabase
+      .channel("chat_sessoes_admin")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_sessoes" },
+        buscarSessoes,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_sessoes" },
+        buscarSessoes,
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, []);
 
+  // ── Realtime: mensagens da sessão ativa + notificação de não lidas ────────
   useEffect(() => {
-    if (!sessao) return;
+    if (!sessaoAtiva) return;
 
-    // Boas-vindas — não salva no banco
-    adicionarMsgSistema(
-      `Olá, *${sessao.aluno_nome}*! 👋 Bem-vindo ao atendimento do *Geração Tech*.\n\nSelecione um assunto abaixo ou digite sua dúvida:`,
-      false,
-    );
-
-    const channel = supabase
-      .channel(`chat_aluno:${sessao.id}`)
+    const ch = supabase
+      .channel(`msgs_admin_${sessaoAtiva.id}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "chat_mensagens",
-          filter: `sessao_id=eq.${sessao.id}`,
+          filter: `sessao_id=eq.${sessaoAtiva.id}`,
         },
         (payload) => {
-          if (payload.new.remetente === "admin")
-            setConversa((prev) => [...prev, payload.new]);
+          setMensagens((prev) => [...prev, payload.new]);
         },
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [sessao]);
+    // Realtime para OUTRAS sessões → incrementa badge
+    const chGlobal = supabase
+      .channel("msgs_admin_global")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_mensagens" },
+        (payload) => {
+          const sid = payload.new.sessao_id;
+          if (sid !== sessaoAtiva?.id && payload.new.remetente !== "admin") {
+            setNaoLidas((prev) => ({ ...prev, [sid]: (prev[sid] || 0) + 1 }));
+          }
+        },
+      )
+      .subscribe();
 
+    return () => {
+      supabase.removeChannel(ch);
+      supabase.removeChannel(chGlobal);
+    };
+  }, [sessaoAtiva]);
+
+  // ── Realtime global (sem sessão ativa) ────────────────────────────────────
+  useEffect(() => {
+    if (sessaoAtiva) return;
+    const ch = supabase
+      .channel("msgs_admin_global_idle")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_mensagens" },
+        (payload) => {
+          if (payload.new.remetente !== "admin") {
+            const sid = payload.new.sessao_id;
+            setNaoLidas((prev) => ({ ...prev, [sid]: (prev[sid] || 0) + 1 }));
+          }
+        },
+      )
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [sessaoAtiva]);
+
+  // ── Scroll automático ─────────────────────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversa]);
+  }, [mensagens]);
 
-  const adicionarMsgSistema = async (texto, salvar = true) => {
-    const nova = {
-      id: `sistema-${Date.now()}-${Math.random()}`,
-      remetente: "sistema",
-      conteudo: texto,
-      created_at: new Date().toISOString(),
-    };
-    setConversa((prev) => [...prev, nova]);
-
-    if (salvar && sessaoRef.current) {
-      await supabase.from("chat_mensagens").insert({
-        sessao_id: sessaoRef.current.id,
-        remetente: "sistema",
-        conteudo: texto,
-      });
-    }
+  // ── Selecionar sessão ─────────────────────────────────────────────────────
+  const selecionarSessao = async (sessao) => {
+    setSessaoAtiva(sessao);
+    // Zera badge de não lidas
+    setNaoLidas((prev) => ({ ...prev, [sessao.id]: 0 }));
+    const { data } = await supabase
+      .from("chat_mensagens")
+      .select("*")
+      .eq("sessao_id", sessao.id)
+      .order("created_at", { ascending: true });
+    setMensagens(data || []);
   };
 
-  const iniciarChat = async () => {
-    if (!dados.nome.trim() || !dados.telefone.trim()) {
-      setErro("Preencha seu nome e telefone para continuar.");
-      return;
-    }
-    setErro("");
+  // ── Enviar resposta ───────────────────────────────────────────────────────
+  const enviarResposta = async () => {
+    if (!novaMsg.trim() || !sessaoAtiva || enviando) return;
     setEnviando(true);
     const { data, error } = await supabase
-      .from("chat_sessoes")
-      .insert([
-        {
-          aluno_nome: dados.nome.trim(),
-          aluno_telefone: dados.telefone.trim(),
-          status: "bot",
-        },
-      ])
-      .select()
-      .single();
-    setEnviando(false);
-    if (data) setSessao(data);
-    else setErro("Erro ao iniciar o chat. Tente novamente.");
-  };
-
-  // Escala para humano SEM abrir WhatsApp — o atendimento continua na página
-  const escalarParaHumano = async (msgTexto) => {
-    setEscalado(true);
-    setMostrarMenu(false);
-    await adicionarMsgSistema(msgTexto);
-
-    if (sessaoRef.current) {
-      await supabase
-        .from("chat_sessoes")
-        .update({ status: "aberto" })
-        .eq("id", sessaoRef.current.id);
-    }
-  };
-
-  // Abre o WhatsApp apenas quando o usuário clicar explicitamente no botão
-  const abrirWhatsApp = () => {
-    const texto = encodeURIComponent(
-      `Olá! Sou ${dados.nome || sessaoRef.current?.aluno_nome} e preciso de suporte sobre o Geração Tech. 😊`,
-    );
-    window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${texto}`, "_blank");
-  };
-
-  const selecionarTopico = async (topico) => {
-    setMostrarMenu(false);
-    setConversa((prev) => [
-      ...prev,
-      {
-        id: `aluno-${Date.now()}`,
-        remetente: "aluno",
-        conteudo: topico.label,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-    await supabase
       .from("chat_mensagens")
       .insert({
-        sessao_id: sessaoRef.current.id,
-        remetente: "aluno",
-        conteudo: topico.label,
-      });
-    setTimeout(async () => {
-      await adicionarMsgSistema(topico.resposta);
-      setTimeout(() => setMostrarMenu(true), 300);
-    }, 350);
+        sessao_id: sessaoAtiva.id,
+        remetente: "admin",
+        conteudo: novaMsg.trim(),
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setMensagens((prev) => [...prev, data]);
+      setNovaMsg("");
+    }
+    setEnviando(false);
   };
 
-  const enviarMensagem = async () => {
-    if (!msg.trim() || !sessao || enviando) return;
-    const texto = msg.trim();
-    setMsg("");
-    setMostrarMenu(false);
-    setEnviando(true);
-
-    setConversa((prev) => [
-      ...prev,
-      {
-        id: `aluno-${Date.now()}`,
-        remetente: "aluno",
-        conteudo: texto,
-        created_at: new Date().toISOString(),
-      },
-    ]);
-    await supabase
-      .from("chat_mensagens")
-      .insert({ sessao_id: sessao.id, remetente: "aluno", conteudo: texto });
-
-    // Se já escalado, a mensagem fica salva no banco para o admin ver — sem bloquear o input
-    if (escalado) {
-      setEnviando(false);
+  // ── Finalizar chamado ─────────────────────────────────────────────────────
+  const finalizarChamado = async () => {
+    if (!sessaoAtiva) return;
+    if (!window.confirm(`Encerrar o atendimento de ${sessaoAtiva.aluno_nome}?`))
       return;
-    }
-
-    const palavrasHumano = [
-      "falar com humano",
-      "falar com a equipe",
-      "falar com equipe",
-      "atendente",
-      "humano",
-      "pessoa real",
-      "quero falar com alguem",
-      "quero falar com alguém",
-    ];
-    const msgNorm = normTexto(texto);
-    if (palavrasHumano.some((p) => msgNorm.includes(normTexto(p)))) {
-      await escalarParaHumano(MSG_REDIRECT);
-      setEnviando(false);
-      return;
-    }
-
-    const topicoEncontrado = encontrarTopico(texto);
-    if (topicoEncontrado) {
-      setTimeout(async () => {
-        await adicionarMsgSistema(topicoEncontrado.resposta);
-        setTimeout(() => setMostrarMenu(true), 300);
-      }, 350);
-      setEnviando(false);
-      return;
-    }
-
-    try {
-      const historicoParaBot = conversa
-        .filter((m) => m.remetente === "aluno" || m.remetente === "sistema")
-        .slice(-8)
-        .map((m) => ({
-          remetente: m.remetente === "sistema" ? "admin" : "aluno",
-          conteudo: m.conteudo,
-        }));
-
-      const res = await fetch(`${BACKEND}/chat-bot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensagem: texto, historico: historicoParaBot }),
-      });
-      const data = await res.json();
-
-      if (data.escalar) {
-        await escalarParaHumano(MSG_REDIRECT);
-      } else {
-        await adicionarMsgSistema(data.resposta);
-        setTimeout(() => setMostrarMenu(true), 300);
-      }
-    } catch {
-      await adicionarMsgSistema(
-        "Não consegui processar sua pergunta agora. Selecione um assunto abaixo ou clique em *Falar com a equipe*.",
-      );
-      setMostrarMenu(true);
-    } finally {
-      setEnviando(false);
+    const { error } = await supabase
+      .from("chat_sessoes")
+      .update({ status: "finalizado" })
+      .eq("id", sessaoAtiva.id);
+    if (!error) {
+      setSessaoAtiva(null);
+      setMensagens([]);
+      buscarSessoes();
     }
   };
 
-  const formatarTexto = (texto) => {
-    return texto.split("\n").map((linha, li, arr) => (
-      <span key={li}>
-        {linha
-          .split(/(\*[^*]+\*)/g)
-          .map((parte, pi) =>
-            parte.startsWith("*") && parte.endsWith("*") ? (
-              <strong key={pi}>{parte.slice(1, -1)}</strong>
-            ) : (
-              <span key={pi}>{parte}</span>
-            ),
-          )}
-        {li < arr.length - 1 && <br />}
-      </span>
-    ));
-  };
-
-  if (!sessao) {
-    return (
-      <div className="suporte-page">
-        <div className="suporte-card">
-          <div className="suporte-header">
-            <div className="suporte-logo">GT</div>
-            <h2>Central de Atendimento</h2>
-            <p>Geração Tech — Tire suas dúvidas aqui</p>
-          </div>
-          <div className="suporte-form">
-            {erro && <div className="suporte-erro">{erro}</div>}
-            <div className="suporte-field">
-              <label>Seu nome completo</label>
-              <input
-                type="text"
-                placeholder="Ex: Maria Silva"
-                value={dados.nome}
-                onChange={(e) => setDados({ ...dados, nome: e.target.value })}
-                onKeyDown={(e) => e.key === "Enter" && iniciarChat()}
-                autoFocus
-              />
-            </div>
-            <div className="suporte-field">
-              <label>Seu telefone (WhatsApp)</label>
-              <input
-                type="tel"
-                placeholder="Ex: 85 9 9999-9999"
-                value={dados.telefone}
-                onChange={(e) =>
-                  setDados({ ...dados, telefone: e.target.value })
-                }
-                onKeyDown={(e) => e.key === "Enter" && iniciarChat()}
-              />
-            </div>
-            <button
-              className="suporte-btn"
-              onClick={iniciarChat}
-              disabled={enviando}
-            >
-              {enviando ? "Conectando..." : "Iniciar Atendimento"}
-            </button>
-          </div>
-          <p className="suporte-aviso">
-            ⚡ Atendimento imediato · 👤 Equipe disponível seg-sex 9h-17h
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const formatarHora = (iso) =>
+    new Date(iso).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
-    <div className="suporte-chat-page">
-      <div className="suporte-chat-header">
-        <div className="suporte-chat-avatar">{escalado ? "👤" : "GT"}</div>
-        <div>
-          <strong>
-            {escalado ? "Equipe Geração Tech" : "Atendimento Geração Tech"}
-          </strong>
-          <span>{escalado ? "🟡 Aguardando atendente" : "🟢 Online"}</span>
+    <div className="atend-layout">
+      {/* ── Sidebar de sessões ─────────────────────────────────────────────── */}
+      <div className="atend-sidebar">
+        <div className="atend-sidebar-header">
+          <span>Chamados Abertos</span>
+          <span className="atend-badge-total">{sessoes.length}</span>
         </div>
-        {!escalado && (
-          <button
-            className="suporte-btn-humano"
-            onClick={() => escalarParaHumano(MSG_REDIRECT)}
-          >
-            👤 Falar com a equipe
-          </button>
+
+        {sessoes.length === 0 ? (
+          <div className="atend-empty-list">
+            <i className="pi pi-inbox" />
+            <p>Nenhum chamado no momento</p>
+          </div>
+        ) : (
+          sessoes.map((s) => (
+            <div
+              key={s.id}
+              className={`atend-session-item ${sessaoAtiva?.id === s.id ? "atend-session-ativo" : ""}`}
+              onClick={() => selecionarSessao(s)}
+            >
+              <div className="atend-session-avatar">
+                {s.aluno_nome?.charAt(0).toUpperCase()}
+              </div>
+              <div className="atend-session-info">
+                <strong>{s.aluno_nome}</strong>
+                <span>{s.aluno_telefone}</span>
+              </div>
+              {naoLidas[s.id] > 0 && (
+                <span className="atend-badge-unread">{naoLidas[s.id]}</span>
+              )}
+            </div>
+          ))
         )}
       </div>
 
-      <div className="suporte-chat-messages">
-        {conversa.map((m, i) => (
-          <div
-            key={m.id || i}
-            className={`suporte-bubble ${
-              m.remetente === "aluno"
-                ? "suporte-bubble-aluno"
-                : m.remetente === "admin"
-                  ? "suporte-bubble-admin"
-                  : "suporte-bubble-bot"
-            }`}
-          >
-            {m.remetente === "admin" && (
-              <span className="suporte-bubble-label">👤 Equipe GT</span>
-            )}
-            <span>{formatarTexto(m.conteudo)}</span>
-            <time>
-              {new Date(m.created_at).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </time>
-          </div>
-        ))}
-
-        {/* Botão de WhatsApp opcional exibido após escalar */}
-        {escalado && (
-          <div className="suporte-whatsapp-opcional">
-            <p>Prefere continuar pelo WhatsApp?</p>
-            <button className="suporte-btn-whatsapp" onClick={abrirWhatsApp}>
-              📲 Abrir WhatsApp
-            </button>
-          </div>
-        )}
-
-        {mostrarMenu && !escalado && (
-          <div className="suporte-menu-topicos">
-            <p>Selecione um assunto:</p>
-            <div className="suporte-topicos-grid">
-              {TOPICOS.map((t) => (
-                <button
-                  key={t.id}
-                  className="suporte-topico-btn"
-                  onClick={() => selecionarTopico(t)}
-                >
-                  {t.label}
-                </button>
-              ))}
+      {/* ── Janela de chat ─────────────────────────────────────────────────── */}
+      <div className="atend-chat">
+        {sessaoAtiva ? (
+          <>
+            <div className="atend-chat-header">
+              <div className="atend-session-avatar">
+                {sessaoAtiva.aluno_nome?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <strong>{sessaoAtiva.aluno_nome}</strong>
+                <span>{sessaoAtiva.aluno_telefone}</span>
+              </div>
               <button
-                className="suporte-topico-btn suporte-topico-humano"
-                onClick={() => escalarParaHumano(MSG_REDIRECT)}
+                className="atend-btn-finalizar"
+                onClick={finalizarChamado}
               >
-                👤 Falar com a equipe
+                <i className="pi pi-check-circle" /> Encerrar
               </button>
             </div>
+
+            <div className="atend-messages">
+              {mensagens.length === 0 && (
+                <div className="atend-msg-inicio">
+                  Início da conversa com {sessaoAtiva.aluno_nome}
+                </div>
+              )}
+              {mensagens.map((m, i) => (
+                <div
+                  key={i}
+                  className={`atend-bubble ${
+                    m.remetente === "admin"
+                      ? "atend-bubble-admin"
+                      : m.remetente === "sistema"
+                        ? "atend-bubble-sistema"
+                        : "atend-bubble-aluno"
+                  }`}
+                >
+                  {m.remetente === "sistema" && (
+                    <span className="atend-bubble-label-sistema">
+                      🤖 Assistente
+                    </span>
+                  )}
+                  <span>{m.conteudo}</span>
+                  <time>{formatarHora(m.created_at)}</time>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="atend-input-area">
+              <input
+                type="text"
+                placeholder="Responda ao aluno..."
+                value={novaMsg}
+                onChange={(e) => setNovaMsg(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && enviarResposta()}
+              />
+              <button
+                onClick={enviarResposta}
+                disabled={enviando || !novaMsg.trim()}
+              >
+                <i className="pi pi-send" />
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="atend-placeholder">
+            <i className="pi pi-comments" />
+            <p>Selecione um chamado ao lado para iniciar o atendimento</p>
           </div>
         )}
-
-        {enviando && (
-          <div className="suporte-bubble suporte-bubble-bot suporte-digitando">
-            <span className="dot" />
-            <span className="dot" />
-            <span className="dot" />
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="suporte-chat-input">
-        <input
-          type="text"
-          placeholder={
-            escalado
-              ? "Digite sua mensagem — a equipe vai responder aqui... 💬"
-              : "Digite sua dúvida ou selecione um assunto acima..."
-          }
-          value={msg}
-          onChange={(e) => setMsg(e.target.value)}
-          onKeyDown={(e) =>
-            e.key === "Enter" && !e.shiftKey && enviarMensagem()
-          }
-          disabled={enviando}
-        />
-        <button onClick={enviarMensagem} disabled={enviando || !msg.trim()}>
-          <i className="pi pi-send" />
-        </button>
       </div>
     </div>
   );
