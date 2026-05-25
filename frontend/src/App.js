@@ -124,22 +124,22 @@ function App() {
   };
 
   // ── Enviar mensagem WhatsApp ──────────────────────────────────────────────
-  const enviarMensagemWhats = async () => {
-    if (!msgWhats.trim() || !alunoChat || enviandoWhats) return;
-    setEnviandoWhats(true);
-    try {
-      await axios.post(
-        `${BACKEND}/send-bulk`,
-        { message: msgWhats, students: [alunoChat], limit: 1 },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMsgWhats("");
-    } catch {
-      alert("Erro ao enviar. Verifique se o backend está rodando.");
-    } finally {
-      setEnviandoWhats(false);
-    }
-  };
+ const enviarMensagemWhats = async () => {
+  if (!msgWhats.trim() || !alunoChat || enviandoWhats) return;
+  setEnviandoWhats(true);
+  try {
+    await axios.post(
+      `${BACKEND}/send-bulk`,
+      { message: msgWhats, students: [alunoChat], limit: 1 },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    setMsgWhats("");
+  } catch {
+    alert("Erro ao enviar. Verifique se o backend está rodando.");
+  } finally {
+    setEnviandoWhats(false);
+  }
+};
 
   // ── Renderiza mídias do histórico ─────────────────────────────────────────
   const renderMidia = (msg) => {
