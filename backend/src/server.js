@@ -7,22 +7,19 @@ const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(
-  cors({
-    origin: ["http://localhost:3000", "https://fala-gtech.vercel.app"],
-  }),
+  cors({ origin: ["http://localhost:3000", "https://fala-gtech.vercel.app"] }),
 );
 
 const PORT = process.env.PORT || 3001;
 const SECRET_KEY =
   process.env.JWT_SECRET || "gtech_dev_secret_troque_em_producao";
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY,
 );
-
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
@@ -43,7 +40,7 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// ─── Normaliza string: minúsculo + sem acento ─────────────────────────────────
+// ─── Normaliza string ─────────────────────────────────────────────────────────
 function norm(str) {
   if (!str) return "";
   return str
@@ -54,40 +51,34 @@ function norm(str) {
     .trim();
 }
 
-// ─── Busca aluno por nome com tolerância total a acentos/caixa ───────────────
+// ─── Busca aluno por nome ─────────────────────────────────────────────────────
 async function buscarAlunoPorNome(nomeRecebido) {
   const { data: todos, error } = await supabase
     .from("alunos")
     .select("id, nome, historico, telefone");
-
   if (error || !todos || todos.length === 0) {
-    console.log("⚠️ Banco vazio ou erro ao buscar alunos:", error?.message);
+    console.log("⚠️ Banco vazio ou erro:", error?.message);
     return null;
   }
 
   const nomeNorm = norm(nomeRecebido);
   const partes = nomeNorm.split(" ").filter((p) => p.length > 2);
+  console.log(`🔍 Buscando: "${nomeRecebido}" → "${nomeNorm}"`);
 
-  console.log(`🔍 Buscando: "${nomeRecebido}" → normalizado: "${nomeNorm}"`);
-  console.log(`🔍 Partes: [${partes.join(", ")}]`);
-
-  // Nível 1: match exato normalizado
   let found = todos.find((a) => norm(a.nome) === nomeNorm);
   if (found) {
-    console.log(`✅ Nível 1 (exato): "${found.nome}"`);
+    console.log(`✅ Nível 1: "${found.nome}"`);
     return found;
   }
 
-  // Nível 2: banco contém todas as partes do pushname
   if (partes.length >= 2) {
     found = todos.find((a) => partes.every((p) => norm(a.nome).includes(p)));
     if (found) {
-      console.log(`✅ Nível 2 (todas partes): "${found.nome}"`);
+      console.log(`✅ Nível 2: "${found.nome}"`);
       return found;
     }
   }
 
-  // Nível 3: pushname contém o primeiro nome do banco E banco contém primeiro nome do pushname
   if (partes.length >= 1) {
     found = todos.find((a) => {
       const nomeAluno = norm(a.nome);
@@ -95,65 +86,51 @@ async function buscarAlunoPorNome(nomeRecebido) {
       return nomeNorm.includes(primeiroParte) && nomeAluno.includes(partes[0]);
     });
     if (found) {
-      console.log(`✅ Nível 3 (cruzado): "${found.nome}"`);
+      console.log(`✅ Nível 3: "${found.nome}"`);
       return found;
     }
   }
 
-  // Nível 4: só primeiro nome do pushname começa o nome do banco
   if (partes.length >= 1) {
     found = todos.find((a) => norm(a.nome).startsWith(partes[0]));
     if (found) {
-      console.log(`✅ Nível 4 (prefixo): "${found.nome}"`);
+      console.log(`✅ Nível 4: "${found.nome}"`);
       return found;
     }
   }
 
-  console.log(`❌ Nenhum aluno encontrado para "${nomeRecebido}"`);
-  console.log(
-    "📋 Nomes no banco (normalizados):",
-    todos.slice(0, 10).map((a) => norm(a.nome)),
-  );
+  console.log(`❌ Não encontrado para "${nomeRecebido}"`);
   return null;
 }
 
 // ─── GET /status ──────────────────────────────────────────────────────────────
-app.get("/status", (req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
-});
+app.get("/status", (req, res) =>
+  res.json({ ok: true, timestamp: new Date().toISOString() }),
+);
 
 // ─── POST /login ──────────────────────────────────────────────────────────────
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   if (!email || !senha)
     return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
-
   try {
     const { data: usuario, error } = await supabase
       .from("usuarios")
       .select("*")
       .eq("email", email.trim().toLowerCase())
       .single();
-
     if (error || !usuario)
       return res.status(401).json({ error: "Credenciais inválidas." });
-
-    let senhaValida = false;
-    if (usuario.senha.startsWith("$2")) {
-      senhaValida = await bcrypt.compare(senha, usuario.senha);
-    } else {
-      senhaValida = usuario.senha === senha;
-    }
-
+    let senhaValida = usuario.senha.startsWith("$2")
+      ? await bcrypt.compare(senha, usuario.senha)
+      : usuario.senha === senha;
     if (!senhaValida)
       return res.status(401).json({ error: "Credenciais inválidas." });
-
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, nome: usuario.nome },
       SECRET_KEY,
       { expiresIn: "8h" },
     );
-
     res.json({ nome: usuario.nome, token });
   } catch (err) {
     console.error("Erro no login:", err);
@@ -164,7 +141,6 @@ app.post("/login", async (req, res) => {
 // ─── POST /send-email-bulk ────────────────────────────────────────────────────
 app.post("/send-email-bulk", verificarToken, async (req, res) => {
   const { students, subject, messageBody } = req.body;
-
   if (!students || !Array.isArray(students) || students.length === 0)
     return res.status(400).json({ error: "Nenhum aluno selecionado." });
   if (!subject || !messageBody)
@@ -173,39 +149,20 @@ app.post("/send-email-bulk", verificarToken, async (req, res) => {
       .json({ error: "Assunto e mensagem são obrigatórios." });
 
   const resultados = { enviados: 0, falhas: [] };
-
   try {
     for (const student of students) {
       const email = student.email || student.contato;
       if (!email || !email.includes("@")) {
         resultados.falhas.push({
           nome: student.nome,
-          motivo: "E-mail inválido ou ausente.",
+          motivo: "E-mail inválido.",
         });
         continue;
       }
-
-      const corpoPersonalizado = messageBody
+      const corpo = messageBody
         .replace(/{nome}/g, student.nome || "")
         .replace(/{curso}/g, student.curso || "");
-
-      const htmlContent = `
-        <div style="font-family:'Segoe UI',Arial,sans-serif;color:#1E293B;max-width:600px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;">
-          <div style="background:linear-gradient(135deg,#1A365D,#2D5A9B);padding:30px 24px;text-align:center;">
-            <h1 style="color:white;margin:0;font-size:1.4rem;font-weight:700;">Geração Tech 3.0</h1>
-            <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:0.9rem;">Programa de Qualificação Profissional</p>
-          </div>
-          <div style="padding:30px 24px;">
-            <h2 style="color:#1A365D;margin:0 0 16px;font-size:1.1rem;">Olá, ${student.nome}!</h2>
-            <div style="color:#4A5568;line-height:1.7;font-size:0.95rem;">${corpoPersonalizado.replace(/\n/g, "<br/>")}</div>
-          </div>
-          <div style="background:#F7FAFC;padding:20px 24px;border-top:1px solid #E2E8F0;text-align:center;">
-            <p style="margin:0 0 12px;font-size:0.85rem;color:#718096;">Precisa de ajuda? Acesse nosso suporte:</p>
-            <a href="http://localhost:3000/suporte" style="background:#1A365D;color:white;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:600;font-size:0.9rem;display:inline-block;">Chat de Suporte</a>
-            <p style="margin:16px 0 0;font-size:0.75rem;color:#A0AEC0;">Equipe Geração Tech 3.0 — IEL-CE</p>
-          </div>
-        </div>`;
-
+      const htmlContent = `<div style="font-family:'Segoe UI',Arial,sans-serif;color:#1E293B;max-width:600px;margin:0 auto;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;"><div style="background:linear-gradient(135deg,#1A365D,#2D5A9B);padding:30px 24px;text-align:center;"><h1 style="color:white;margin:0;font-size:1.4rem;font-weight:700;">Geração Tech 3.0</h1><p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:0.9rem;">Programa de Qualificação Profissional</p></div><div style="padding:30px 24px;"><h2 style="color:#1A365D;margin:0 0 16px;font-size:1.1rem;">Olá, ${student.nome}!</h2><div style="color:#4A5568;line-height:1.7;font-size:0.95rem;">${corpo.replace(/\n/g, "<br/>")}</div></div><div style="background:#F7FAFC;padding:20px 24px;border-top:1px solid #E2E8F0;text-align:center;"><p style="margin:0 0 12px;font-size:0.85rem;color:#718096;">Precisa de ajuda?</p><a href="https://fala-gtech.vercel.app/suporte" style="background:#1A365D;color:white;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:600;font-size:0.9rem;display:inline-block;">Chat de Suporte</a><p style="margin:16px 0 0;font-size:0.75rem;color:#A0AEC0;">Equipe Geração Tech 3.0 — IEL-CE</p></div></div>`;
       try {
         await transporter.sendMail({
           from: `"Geração Tech 3.0" <${process.env.EMAIL_USER}>`,
@@ -221,7 +178,7 @@ app.post("/send-email-bulk", verificarToken, async (req, res) => {
           })
           .eq("id", student.id);
         resultados.enviados++;
-        console.log(`✅ E-mail → ${student.nome} (${email})`);
+        console.log(`✅ E-mail → ${student.nome}`);
       } catch (emailErr) {
         resultados.falhas.push({
           nome: student.nome,
@@ -230,7 +187,6 @@ app.post("/send-email-bulk", verificarToken, async (req, res) => {
         console.error(`❌ E-mail falhou → ${student.nome}:`, emailErr.message);
       }
     }
-
     res.json({
       message: `${resultados.enviados} e-mail(s) enviado(s) com sucesso.`,
       falhas: resultados.falhas,
@@ -238,6 +194,66 @@ app.post("/send-email-bulk", verificarToken, async (req, res) => {
   } catch (err) {
     console.error("Erro geral e-mail:", err);
     res.status(500).json({ error: "Falha interna ao disparar e-mails." });
+  }
+});
+
+// ─── BOT DE ATENDIMENTO (Gemini) ──────────────────────────────────────────────
+const BOT_CONFIG = require("./bot-config");
+
+app.post("/chat-bot", async (req, res) => {
+  const { mensagem, historico } = req.body;
+  if (!mensagem) return res.status(400).json({ error: "Mensagem vazia." });
+
+  const msgNorm = mensagem.toLowerCase().trim();
+  const querHumano = BOT_CONFIG.palavrasEscalar.some((p) =>
+    msgNorm.includes(p.toLowerCase()),
+  );
+  if (querHumano)
+    return res.json({ resposta: BOT_CONFIG.msgEscalar, escalar: true });
+
+  try {
+    const contents = [];
+    if (historico && historico.length > 0) {
+      historico.forEach((m) =>
+        contents.push({
+          role: m.remetente === "aluno" ? "user" : "model",
+          parts: [{ text: m.conteudo }],
+        }),
+      );
+    }
+    contents.push({ role: "user", parts: [{ text: mensagem }] });
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: BOT_CONFIG.contexto }] },
+          contents,
+          generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
+        }),
+      },
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      console.error("Erro Gemini:", data);
+      throw new Error(data.error?.message || "Erro na API");
+    }
+    const resposta =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      'Não consegui processar. Digite *"falar com humano"* para falar com nossa equipe.';
+    const botNaoSabe =
+      resposta.toLowerCase().includes("encaminhar para a equipe") ||
+      resposta.toLowerCase().includes("não tenho essa informação");
+    res.json({ resposta, escalar: botNaoSabe });
+  } catch (err) {
+    console.error("Erro no bot:", err.message);
+    res.json({
+      resposta:
+        'Estou com dificuldades técnicas. Digite *"falar com humano"* para falar com nossa equipe.',
+      escalar: false,
+    });
   }
 });
 
@@ -275,51 +291,66 @@ wppconnect
 
       console.log("\n" + "═".repeat(50));
       console.log(`📩 MENSAGEM RECEBIDA`);
-      console.log(`   De:      ${message.from}`);
-      console.log(`   Nome:    ${nomeRecebido}`);
-      console.log(`   Texto:   ${corpo}`);
+      console.log(`   De:   ${message.from}`);
+      console.log(`   Nome: ${nomeRecebido}`);
+      console.log(`   Tipo: ${message.type}`);
+      console.log(`   Texto: ${corpo}`);
       console.log("═".repeat(50));
 
       if (!nomeRecebido) {
-        console.warn(
-          "⚠️ pushname vazio, não foi possível identificar o aluno.",
-        );
+        console.warn("⚠️ pushname vazio.");
         return;
       }
 
       try {
         const aluno = await buscarAlunoPorNome(nomeRecebido);
-
         if (!aluno) {
-          console.warn(`⚠️ Aluno não encontrado. Mensagem ignorada.`);
+          console.warn(`⚠️ Aluno não encontrado.`);
           return;
         }
 
-        const novoHistorico = [
-          ...(aluno.historico || []),
-          { tipo: "entrada", texto: corpo, data: new Date().toISOString() },
-        ];
+        // Determina o tipo de mensagem recebida
+        let entradaHistorico;
+        if (message.type === "ptt" || message.type === "audio") {
+          // Áudio recebido — salva indicador (mídia não é armazenada localmente)
+          entradaHistorico = {
+            tipo: "entrada",
+            texto: "[Áudio recebido]",
+            mimetype: "audio/ogg",
+            data: new Date().toISOString(),
+          };
+        } else if (message.type === "image") {
+          entradaHistorico = {
+            tipo: "entrada",
+            texto: corpo || "[Imagem recebida]",
+            mimetype: "image/jpeg",
+            data: new Date().toISOString(),
+          };
+        } else {
+          entradaHistorico = {
+            tipo: "entrada",
+            texto: corpo,
+            data: new Date().toISOString(),
+          };
+        }
 
+        const novoHistorico = [...(aluno.historico || []), entradaHistorico];
         const { error: updateError } = await supabase
           .from("alunos")
           .update({
             respondeu: true,
-            ultima_resposta: corpo,
+            ultima_resposta: corpo || entradaHistorico.texto,
             data_resposta: new Date().toISOString(),
             status: "concluido",
             historico: novoHistorico,
           })
           .eq("id", aluno.id);
 
-        if (updateError) {
-          console.error("❌ Erro ao salvar no banco:", updateError.message);
-        } else {
-          console.log(
-            `✅ Salvo! Aluno: "${aluno.nome}" | Mensagem: "${corpo}"`,
-          );
-        }
+        if (updateError)
+          console.error("❌ Erro ao salvar:", updateError.message);
+        else console.log(`✅ Salvo! Aluno: "${aluno.nome}"`);
       } catch (err) {
-        console.error("❌ Erro inesperado no onMessage:", err.message);
+        console.error("❌ Erro inesperado:", err.message);
       }
     });
   })
@@ -330,7 +361,6 @@ wppconnect
 // ─── POST /send-bulk ──────────────────────────────────────────────────────────
 app.post("/send-bulk", verificarToken, async (req, res) => {
   const { message, students, limit = 50 } = req.body;
-
   if (!whatsappClient)
     return res.status(503).json({ error: "WhatsApp não conectado." });
 
@@ -342,7 +372,6 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
       try {
         let num = String(student.telefone).replace(/\D/g, "");
         if (!num.startsWith("55")) num = "55" + num;
-
         const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
         if (!check.canReceiveMessage)
           throw new Error("Número sem WhatsApp ativo");
@@ -350,7 +379,6 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
         const msg = message
           .replace(/{nome}/g, student.nome || "")
           .replace(/{curso}/g, student.curso || "");
-
         await whatsappClient.sendText(check.id._serialized, msg);
 
         const { data: atual } = await supabase
@@ -358,12 +386,10 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
           .select("historico")
           .eq("id", student.id)
           .single();
-
         const hist = [
           ...(atual?.historico || []),
           { tipo: "saida", texto: msg, data: new Date().toISOString() },
         ];
-
         await supabase
           .from("alunos")
           .update({
@@ -374,9 +400,8 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
           .eq("id", student.id);
 
         console.log(`✅ Enviado → ${student.nome}`);
-        if (lote.indexOf(student) < lote.length - 1) {
+        if (lote.indexOf(student) < lote.length - 1)
           await new Promise((r) => setTimeout(r, 15000));
-        }
       } catch (err) {
         console.error(`❌ Falha → ${student.nome}:`, err.message);
         await supabase
@@ -389,8 +414,8 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
   })();
 });
 
-
 // ─── POST /send-audio ─────────────────────────────────────────────────────────
+// Método correto: sendPttFromBase64 (envia como nota de voz/PTT)
 app.post("/send-audio", verificarToken, async (req, res) => {
   const { student, audioBase64 } = req.body;
   if (!whatsappClient)
@@ -402,29 +427,99 @@ app.post("/send-audio", verificarToken, async (req, res) => {
     const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
     if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
 
-    // Remove prefixo data:audio/...;base64, se presente
-    const base64Clean = audioBase64.includes(",")
-      ? audioBase64.split(",")[1]
-      : audioBase64;
+    // sendPttFromBase64(to, base64, filename) — aceita base64 COM ou SEM prefixo data:
+    // O WPPConnect espera o base64 completo COM o prefixo data:audio/ogg;base64,...
+    const base64ComPrefixo = audioBase64.startsWith("data:")
+      ? audioBase64
+      : `data:audio/ogg;base64,${audioBase64}`;
 
-    // sendVoiceBase64 é o método correto do WPPConnect para áudio base64
-    await whatsappClient.sendVoiceBase64(check.id._serialized, base64Clean);
+    await whatsappClient.sendPttFromBase64(
+      check.id._serialized,
+      base64ComPrefixo,
+      "audio.ogg",
+    );
 
     const { data: atual } = await supabase
-      .from("alunos").select("historico").eq("id", student.id).single();
-
+      .from("alunos")
+      .select("historico")
+      .eq("id", student.id)
+      .single();
     const hist = [
       ...(atual?.historico || []),
-      { tipo: "saida", texto: audioBase64, mimetype: "audio/ogg", data: new Date().toISOString() },
+      {
+        tipo: "saida",
+        texto: audioBase64,
+        mimetype: "audio/ogg",
+        data: new Date().toISOString(),
+      },
     ];
-
-    await supabase.from("alunos")
+    await supabase
+      .from("alunos")
       .update({ historico: hist })
       .eq("id", student.id);
 
+    console.log(`✅ Áudio enviado → ${student.nome}`);
     res.json({ success: true });
   } catch (err) {
-    console.error("Erro ao enviar áudio:", err.message);
+    console.error("❌ Erro ao enviar áudio:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── POST /send-image ─────────────────────────────────────────────────────────
+// Método correto: sendImageFromBase64(to, base64, filename, caption?)
+app.post("/send-image", verificarToken, async (req, res) => {
+  const { student, imageBase64, caption } = req.body;
+  if (!whatsappClient)
+    return res.status(503).json({ error: "WhatsApp não conectado." });
+
+  try {
+    let num = String(student.telefone).replace(/\D/g, "");
+    if (!num.startsWith("55")) num = "55" + num;
+    const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
+    if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
+
+    // Detecta o tipo de imagem pelo prefixo base64
+    const mimeMatch = imageBase64.match(/^data:(image\/\w+);base64,/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const ext = mime.split("/")[1] || "jpg";
+
+    // sendImageFromBase64 espera base64 COM prefixo data:image/...;base64,
+    const base64ComPrefixo = imageBase64.startsWith("data:")
+      ? imageBase64
+      : `data:${mime};base64,${imageBase64}`;
+
+    await whatsappClient.sendImageFromBase64(
+      check.id._serialized,
+      base64ComPrefixo,
+      `imagem.${ext}`,
+      caption || "",
+    );
+
+    const { data: atual } = await supabase
+      .from("alunos")
+      .select("historico")
+      .eq("id", student.id)
+      .single();
+    const hist = [
+      ...(atual?.historico || []),
+      {
+        tipo: "saida",
+        texto: imageBase64,
+        mimetype: mime,
+        caption: caption || "",
+        data: new Date().toISOString(),
+      },
+    ];
+    await supabase
+      .from("alunos")
+      .update({ historico: hist })
+      .eq("id", student.id);
+
+    console.log(`✅ Imagem enviada → ${student.nome}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Erro ao enviar imagem:", err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -434,6 +529,6 @@ app.listen(PORT, () => {
   console.log(`\n🚀 Servidor Geração Tech 3.0 rodando na porta ${PORT}`);
   console.log(`📧 E-mail: ${process.env.EMAIL_USER || "⚠️ Não configurado"}`);
   console.log(
-    `🔒 JWT: ${SECRET_KEY !== "gtech_dev_secret_troque_em_producao" ? "✅ Configurado" : "⚠️ Usando chave padrão"}\n`,
+    `🔒 JWT: ${SECRET_KEY !== "gtech_dev_secret_troque_em_producao" ? "✅ Configurado" : "⚠️ Chave padrão"}\n`,
   );
 });
