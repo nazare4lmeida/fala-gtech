@@ -389,80 +389,37 @@ app.post("/send-bulk", verificarToken, async (req, res) => {
   })();
 });
 
-// ─── BOT DE ATENDIMENTO (Gemini) ──────────────────────────────────────────────
-const BOT_CONFIG = require("./bot-config");
 
-app.post("/chat-bot", async (req, res) => {
-  const { mensagem, historico } = req.body;
-
-  if (!mensagem) return res.status(400).json({ error: "Mensagem vazia." });
-
-  // Verifica se quer falar com humano
-  const msgNorm = mensagem.toLowerCase().trim();
-  const querHumano = BOT_CONFIG.palavrasEscalar.some((p) =>
-    msgNorm.includes(p.toLowerCase())
-  );
-
-  if (querHumano) {
-    return res.json({ resposta: BOT_CONFIG.msgEscalar, escalar: true });
-  }
+// ─── POST /send-audio ─────────────────────────────────────────────────────────
+app.post("/send-audio", verificarToken, async (req, res) => {
+  const { student, audioBase64 } = req.body;
+  if (!whatsappClient)
+    return res.status(503).json({ error: "WhatsApp não conectado." });
 
   try {
-    const contents = [];
+    let num = String(student.telefone).replace(/\D/g, "");
+    if (!num.startsWith("55")) num = "55" + num;
+    const check = await whatsappClient.checkNumberStatus(`${num}@c.us`);
+    if (!check.canReceiveMessage) throw new Error("Número sem WhatsApp ativo");
 
-    if (historico && historico.length > 0) {
-      historico.forEach((m) => {
-        contents.push({
-          role: m.remetente === "aluno" ? "user" : "model",
-          parts: [{ text: m.conteudo }],
-        });
-      });
-    }
+    await whatsappClient.sendVoice(check.id._serialized, audioBase64);
 
-    contents.push({ role: "user", parts: [{ text: mensagem }] });
+    const { data: atual } = await supabase
+      .from("alunos").select("historico").eq("id", student.id).single();
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const hist = [
+      ...(atual?.historico || []),
+      { tipo: "saida", texto: audioBase64, mimetype: "audio/ogg", data: new Date().toISOString() },
+    ];
 
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: BOT_CONFIG.contexto }],
-          },
-          contents,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500,
-          },
-        }),
-      }
-    );
+    await supabase.from("alunos")
+      .update({ historico: hist })
+      .eq("id", student.id);
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("Erro Gemini:", data);
-      throw new Error(data.error?.message || "Erro na API do Gemini");
-    }
-
-    const resposta =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'Desculpe, não consegui processar sua pergunta. Digite *"falar com humano"* para falar com nossa equipe.';
-
-    const botNaoSabe =
-      resposta.toLowerCase().includes("encaminhar para a equipe") ||
-      resposta.toLowerCase().includes("não tenho essa informação");
-
-    res.json({ resposta, escalar: botNaoSabe });
+    res.json({ success: true });
   } catch (err) {
-    console.error("Erro no bot:", err.message);
-    res.json({
-      resposta:
-        'Desculpe, estou com dificuldades técnicas. Digite *"falar com humano"* para falar com nossa equipe.',
-      escalar: false,
-    });
+    console.error("Erro ao enviar áudio:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
